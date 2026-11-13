@@ -262,8 +262,14 @@ public record AssistantCommand(
         Objects.requireNonNull(completionCriteria, "completionCriteria 不能为空");
     }
 
-    public AssistantCommand promoteToTask(TaskId promotedTaskId, Instant at) {
+    /**
+     * 轻量态升级为持久 Task：控制模式由 READ_ONLY 改为 DELEGATED，写工具在任务内可见； 不可撤销的写操作仍由 ToolGateway 按授权规则发起 HITL
+     * 审批，审批即用户确认。{@code delegatedContract} 必须已包含任务协调者角色的工具动作。
+     */
+    public AssistantCommand promoteToTask(
+            TaskId promotedTaskId, ExecutionContract delegatedContract, Instant at) {
         Objects.requireNonNull(promotedTaskId, "promotedTaskId 不能为空");
+        Objects.requireNonNull(delegatedContract, "delegatedContract 不能为空");
         Objects.requireNonNull(at, "at 不能为空");
         if (taskId != null
                 || operation != Operation.START
@@ -288,8 +294,8 @@ public record AssistantCommand(
                 correlationId,
                 causationId,
                 idempotencyKey,
-                controlMode,
-                executionContract,
+                ControlMode.DELEGATED,
+                delegatedContract,
                 null,
                 sequenceBase,
                 input,
@@ -463,6 +469,34 @@ public record AssistantCommand(
                         invocationProfile,
                         at)
                 .withResumeStateRequired(false, at);
+    }
+
+    /**
+     * 轻量态角色切换后的续接命令（ADR-011）：同一 Run 与会话，新的 executionId 与执行画像，序号接在前一执行之后。 其余字段原样沿用，不派生节点、租约或
+     * dispatch 身份。
+     */
+    public AssistantCommand forRoleHandoff(
+            ExecutionId nextExecutionId,
+            long nextSequenceBase,
+            InvocationProfile nextInvocationProfile,
+            Instant at) {
+        Objects.requireNonNull(nextExecutionId, "nextExecutionId 不能为空");
+        Objects.requireNonNull(nextInvocationProfile, "nextInvocationProfile 不能为空");
+        if (taskId != null || operation != Operation.START || nodeIdentity != null) {
+            throw new IllegalStateException("仅 DIRECT START 可派生角色切换续接命令");
+        }
+        return copy(
+                operation,
+                sessionId,
+                nextExecutionId,
+                runId,
+                parentExecutionId,
+                lease,
+                nextSequenceBase,
+                input,
+                taskModelSelection,
+                nextInvocationProfile,
+                at);
     }
 
     public AssistantCommand withInput(String nextInput, Lease nextLease, Instant at) {

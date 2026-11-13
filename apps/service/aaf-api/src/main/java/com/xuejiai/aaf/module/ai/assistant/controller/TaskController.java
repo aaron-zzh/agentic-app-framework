@@ -19,6 +19,7 @@ import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.TaskCommandService;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.Task;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskDetails;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.HumanApprovalPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskQueryPort;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.ConversationId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TaskId;
@@ -39,7 +40,11 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 @PreAuthorize("isAuthenticated()")
 public class TaskController {
+    /** 首页看板单次最多返回的未终结 Task 数。 */
+    private static final int ACTIVE_TASK_LIMIT = 50;
+
     private final TaskQueryPort tasks;
+    private final HumanApprovalPort approvals;
     private final TaskCommandService commands;
     private final OperatorContext operatorContext;
     private final ParallelTaskQuotaApi parallelTaskQuota;
@@ -54,6 +59,16 @@ public class TaskController {
                         .toList());
     }
 
+    @Operation(summary = "查询当前用户跨会话的未终结 Task（首页看板，最多 50 条，按更新时间倒序）")
+    @GetMapping("/active")
+    public Result<List<TaskDetails>> active() {
+        var tenantId = tenantId();
+        return Result.success(
+                tasks.listActive(tenantId, userId(), ACTIVE_TASK_LIMIT).stream()
+                        .map(details -> withDecisionBlockers(tenantId, details))
+                        .toList());
+    }
+
     @Operation(summary = "查询 Task 及 current plan、attempt 与 dispatch")
     @GetMapping("/{taskId}")
     public Result<TaskDetails> get(@PathVariable String taskId) {
@@ -63,6 +78,33 @@ public class TaskController {
                         .map(details -> withDecisionBlockers(tenantId, details))
                         .orElseThrow(() -> new IllegalArgumentException("Task 不存在")));
     }
+
+    @Operation(summary = "查询 Task 当前待处理的工具授权（后台执行的任务无实时流时，由任务卡片发起审批）")
+    @GetMapping("/{taskId}/approvals")
+    public Result<List<PendingApprovalVO>> pendingApprovals(@PathVariable String taskId) {
+        var tenantId = tenantId();
+        var userId = userId();
+        var canonicalTaskId = new TaskId(taskId);
+        // 先按当前用户查 Task，确保只能看到自己任务的审批
+        tasks.find(tenantId, userId, canonicalTaskId)
+                .orElseThrow(() -> new IllegalArgumentException("Task 不存在"));
+        return Result.success(
+                approvals.pending(tenantId, canonicalTaskId).stream()
+                        .filter(approval -> approval.invocationContext().userId().equals(userId))
+                        .map(
+                                approval ->
+                                        new PendingApprovalVO(
+                                                approval.approvalId(),
+                                                approval.action(),
+                                                approval.reason(),
+                                                approval.impact(),
+                                                approval.reversible()))
+                        .toList());
+    }
+
+    /** 待处理授权的展示投影：只暴露决策所需信息，不含调用上下文与参数原文。 */
+    public record PendingApprovalVO(
+            String approvalId, String action, String reason, String impact, boolean reversible) {}
 
     @Operation(summary = "请求暂停 Task，立即关闭旧执行权并等待逐 Execution 状态保存 ACK")
     @PostMapping("/{taskId}/pause")

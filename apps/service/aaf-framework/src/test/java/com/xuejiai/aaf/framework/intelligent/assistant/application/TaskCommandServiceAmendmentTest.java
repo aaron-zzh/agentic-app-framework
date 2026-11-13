@@ -23,6 +23,7 @@ import com.xuejiai.aaf.framework.intelligent.assistant.model.ArtifactCompletionC
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionInput;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.Task;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantCommandPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantDefinitionPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ExecutionProfileSnapshotPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.HitlTransitionPort;
@@ -215,6 +216,7 @@ class TaskCommandServiceAmendmentTest {
                         agentExecutions,
                         mock(TaskDispatchSignalPort.class),
                         mock(ArtifactCompletionEvaluator.class),
+                        mock(AssistantDefinitionPort.class),
                         Clock.fixed(NOW, ZoneOffset.UTC),
                         Duration.ofMinutes(1),
                         Duration.ofSeconds(30));

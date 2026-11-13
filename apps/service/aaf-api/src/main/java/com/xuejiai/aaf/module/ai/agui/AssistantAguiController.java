@@ -58,7 +58,6 @@ import com.xuejiai.aaf.module.ai.assistant.vo.AssistantExecutionRequest.ModelSel
 import com.xuejiai.aaf.module.ai.assistant.vo.AssistantExecutionRequest.OutputOptions;
 import com.xuejiai.aaf.module.ai.chat.service.ChatService;
 
-import io.agentscope.core.agui.encoder.AguiEventEncoder;
 import io.agentscope.core.agui.event.AguiEvent;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Validator;
@@ -71,8 +70,6 @@ import tools.jackson.databind.JsonNode;
 @RequestMapping("/api/agui")
 @PreAuthorize("isAuthenticated()")
 public class AssistantAguiController {
-    /** 线程安全且无状态，可跨请求共享。 */
-    private static final AguiEventEncoder ENCODER = new AguiEventEncoder();
 
     private final AssistantExecutionService assistantExecutions;
     private final AigcProjectApi projects;
@@ -185,9 +182,8 @@ public class AssistantAguiController {
     }
 
     /**
-     * 审批恢复（AAF-104 #10404）：逐条按 {@code interruptId}（即 {@code approvalId}）落定决定。
-     * 批准与拒绝都先打开整个任务的实时订阅，再通过 {@link TaskRecoveryDispatchPort#recover} 恢复发起审批的节点；
-     * 拒绝会在该节点内作为工具错误反馈给模型，不暂停整个任务。
+     * 审批恢复（AAF-104 #10404）：逐条按 {@code interruptId}（即 {@code approvalId}）落定决定。 批准与拒绝都先打开整个任务的实时订阅，再由
+     * {@code hitl.decide} 恢复发起审批的节点； 拒绝会在该节点内作为工具错误反馈给模型，不暂停整个任务。
      */
     private SseEmitter resumeApproval(RunRequest request, ResumeEntry entry, TenantId tenantId) {
         var pending =
@@ -222,13 +218,22 @@ public class AssistantAguiController {
             throw failure;
         }
         var emitter = new SseEmitter(600_000L);
-        var session = agUiProjector.openSession();
         var threadId = request.threadId();
         var runId = request.runId();
-        recoveries.recover(tenantId, entry.interruptId());
+        // 恢复流里是任务节点事件，runId 与客户端本次 resume 请求不同；绑定到请求的 run，避免流尾 close 标识冲突
+        var session = agUiProjector.openSession(threadId, runId);
+        // 恢复是新的 AG-UI run：先发 RUN_STARTED，再投影续读的任务节点事件（节点恢复不产生 EXECUTION_STARTED）
+        send(emitter, session.start(threadId, runId), 0);
+        // 节点恢复已由 hitl.decide → TaskCommandService.resumeReadyNodes 完成，这里只续读任务事件
+        // 恢复后的回复与新建 run 同样按块落库，否则刷新或重新打开对话后丢失
+        var blockTextBuffers = new ConcurrentHashMap<String, StringBuilder>();
         recovery.events()
                 .subscribe(
-                        event -> send(emitter, session.project(event), event.sequence()),
+                        event -> {
+                            persistAssistantMessageOnBlockCompleted(
+                                    threadId, runId, event, blockTextBuffers);
+                            send(emitter, session.project(event), event.sequence());
+                        },
                         failure -> {
                             send(
                                     emitter,
@@ -260,9 +265,12 @@ public class AssistantAguiController {
                                         new IllegalArgumentException(
                                                 "未知的 interruptId: " + entry.interruptId()));
         var emitter = new SseEmitter(600_000L);
-        var session = agUiProjector.openSession();
         var threadId = request.threadId();
         var runId = request.runId();
+        // 同审批恢复：续读的是任务节点事件，绑定到客户端本次 resume 请求的 run
+        var session = agUiProjector.openSession(threadId, runId);
+        // 同审批恢复：恢复是新的 AG-UI run，先发 RUN_STARTED
+        send(emitter, session.start(threadId, runId), 0);
         if (!entry.resolved()) {
             send(emitter, session.close(threadId, runId), Long.MAX_VALUE);
             emitter.complete();
@@ -270,13 +278,18 @@ public class AssistantAguiController {
         }
         // 先登记实时订阅再提交补充输入，否则会漏掉恢复后最早产出的文本增量
         var recovery = approvalEvents.open(tenantId, clarification.taskId(), new RunId(runId));
+        var blockTextBuffers = new ConcurrentHashMap<String, StringBuilder>();
         clarificationResume
                 .submit(tenantId, currentUserId(), clarification, entry.payload())
                 // 归属校验在 submit 内完成：失败时订阅从未被消费，需主动释放，避免等到孤儿回收
                 .doOnError(ignored -> recovery.events().subscribe().dispose())
                 .thenMany(recovery.events())
                 .subscribe(
-                        event -> send(emitter, session.project(event), event.sequence()),
+                        event -> {
+                            persistAssistantMessageOnBlockCompleted(
+                                    threadId, runId, event, blockTextBuffers);
+                            send(emitter, session.project(event), event.sequence());
+                        },
                         failure -> {
                             send(
                                     emitter,
@@ -313,7 +326,15 @@ public class AssistantAguiController {
     private ExecutionStream executionStream(RunRequest request) {
         var input = lastUserInput(request.messages());
         var props = request.forwardedProps();
-        var plan = mode(props).plan(props, input, validator);
+        var mode = mode(props);
+        if (mode == Mode.CHAT) {
+            // 对话里选的角色只作起步角色写入会话，不锁定路由，协调者仍可自主切换（ADR-011）
+            var startingRole = chatRoleSelection(props);
+            if (startingRole != null) {
+                chatService.rememberStartingRole(request.threadId(), startingRole.key());
+            }
+        }
+        var plan = mode.plan(props, input, validator);
         var verifiedProjectId = requireProjectBinding(props, request.threadId(), plan.request());
         return assistantExecutions.start(
                 plan.request(),
@@ -396,7 +417,7 @@ public class AssistantAguiController {
                         ? null
                         : new AssistantExecutionRequest.AssistantTarget(
                                 requireText(props, "assistantId", "forwardedProps.assistantId"));
-        var role = chatRoleSelection(props);
+        // 对话不锁定角色：forwardedProps.role 已在 executionStream 写入会话起步角色，这里不进入路由
         var skill = chatSkillSelection(props);
         return new AssistantExecutionRequest(
                 assistant,
@@ -409,7 +430,7 @@ public class AssistantAguiController {
                         null,
                         null),
                 new Input(input.text(), Map.of(), input.attachments()),
-                role,
+                null,
                 skill,
                 new KnowledgeOptions(KnowledgeMode.DEFAULT, Set.of(), 5, 0.2),
                 modelSelection(props),
@@ -550,9 +571,9 @@ public class AssistantAguiController {
     /**
      * 发送一批 AG-UI 事件。
      *
-     * <p>序列化必须走 {@link AguiEventEncoder}：官方 {@code AguiEvent} 用 Jackson 2 注解，Spring Boot 4 的
-     * Jackson 3 {@code HttpMessageConverter} 不认这些注解。encoder 自带 Jackson 2 codec 且返回带前导 空格的 JSON，与
-     * SSE 的 {@code data:} 前缀拼成标准 {@code data: {...}}。
+     * <p>序列化必须走 {@link AafAguiEncoder}（委托官方 encoder）：官方 {@code AguiEvent} 用 Jackson 2 注解，Spring
+     * Boot 4 的 Jackson 3 {@code HttpMessageConverter} 不认这些注解。encoder 自带 Jackson 2 codec 且返回带前导 空格的
+     * JSON，与 SSE 的 {@code data:} 前缀拼成标准 {@code data: {...}}。
      *
      * <p>SSE id 按「事件游标.批内序号」生成：一条 ExecutionEvent 可投影出多条 AG-UI 事件，复用同一 id 会 让 Last-Event-ID 断线续传错位。
      */
@@ -562,7 +583,7 @@ public class AssistantAguiController {
                 emitter.send(
                         SseEmitter.event()
                                 .id(cursor + "." + index)
-                                .data(ENCODER.encodeToJson(events.get(index))));
+                                .data(AafAguiEncoder.encodeToJson(events.get(index))));
             }
         } catch (IOException failure) {
             emitter.complete();

@@ -41,7 +41,7 @@ export function SubTaskActivityList() {
   const agentCount = list.filter((activity) => activity.kind === "EXECUTOR").length
 
   return (
-    <div className="flex flex-col gap-1.5 border-t px-3 py-2">
+    <div className="mb-3 flex max-w-[85%] flex-col gap-1.5 rounded-lg border px-3 py-2">
       <div className="flex items-center gap-1.5 font-medium text-foreground text-xs">
         <Users className="size-3" />
         <span>多智能体协作{agentCount > 0 ? `（${agentCount} 个执行者）` : ""}</span>

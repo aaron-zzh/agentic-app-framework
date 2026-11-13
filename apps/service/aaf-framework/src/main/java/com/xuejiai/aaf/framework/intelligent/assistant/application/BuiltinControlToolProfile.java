@@ -6,6 +6,7 @@ import java.util.UUID;
 import java.util.stream.Stream;
 
 import com.xuejiai.aaf.framework.intelligent.agent.model.ToolRef;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionIntent;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionIntent.DecompositionStrategy;
 
 /** 按智能体类型、容器状态与分解策略限定内置控制工具与知识检索工具，并提供 Task 合同的可信工具上界。 */
@@ -25,6 +26,13 @@ public final class BuiltinControlToolProfile {
                     toolRef(HandBackTaskTool.TOOL_NAME),
                     toolRef(CancelTaskTool.TOOL_NAME),
                     toolRef(ContextLoadTool.TOOL_NAME));
+
+    /** 轻量态自动路由的协调者额外可切换角色（ADR-011）；锁定角色与续接执行不暴露，保证每个 Run 最多切换一次。 */
+    private static final List<ToolRef> DIRECT_AUTO_ROUTE_TOOLS =
+            Stream.concat(
+                            DIRECT_COORDINATOR_TOOLS.stream(),
+                            Stream.of(toolRef(ActivateRoleTool.TOOL_NAME)))
+                    .toList();
 
     private static final List<ToolRef> TASK_EXECUTION_TOOLS =
             List.of(
@@ -56,7 +64,7 @@ public final class BuiltinControlToolProfile {
     private static final Set<String> ALL_TOOL_NAMES =
             Stream.concat(
                             Stream.concat(
-                                            DIRECT_COORDINATOR_TOOLS.stream(),
+                                            DIRECT_AUTO_ROUTE_TOOLS.stream(),
                                             TASK_AUTO_TOOLS.stream())
                                     .map(ToolRef::name),
                             Stream.of(KNOWLEDGE_SEARCH_TOOL_NAME))
@@ -75,9 +83,13 @@ public final class BuiltinControlToolProfile {
     public static List<ToolRef> resolve(AssistantCommand command) {
         var agentKind = command.invocationProfile().agentKind();
         if (command.taskId() == null) {
-            return agentKind == InvocationProfile.AgentKind.COORDINATOR
-                    ? DIRECT_COORDINATOR_TOOLS
-                    : List.of();
+            if (agentKind != InvocationProfile.AgentKind.COORDINATOR) {
+                return List.of();
+            }
+            return command.invocationProfile().executionIntent().routeConstraint()
+                            == ExecutionIntent.RouteConstraint.ROUTE_AUTO
+                    ? DIRECT_AUTO_ROUTE_TOOLS
+                    : DIRECT_COORDINATOR_TOOLS;
         }
         if (command.nodeIdentity() == null) {
             return List.of();

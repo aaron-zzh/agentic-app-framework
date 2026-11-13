@@ -17,12 +17,14 @@ import {
   useAuiEvent,
   useAuiState
 } from "@assistant-ui/react"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   ArrowUpIcon,
   BrainCircuitIcon,
   FileTextIcon,
   ImageIcon,
   ListTodoIcon,
+  LoaderCircleIcon,
   PaperclipIcon,
   SquareIcon
 } from "lucide-react"
@@ -41,6 +43,7 @@ import {
 } from "@/features/chatter/types"
 import { VoiceWaveform3D } from "@/features/livechat/voice/VoiceWaveform3D"
 import { WsAsrButton } from "@/features/livechat/voice/WsAsrButton"
+import { type TaskStatus, taskApi, taskKeys } from "@/lib/api/rest/ai"
 import { useModelSelector } from "@/lib/hooks/use-model-selector"
 
 interface ChatterComposerProps {
@@ -258,9 +261,13 @@ export function ChatterComposer({
             )}
 
             <AuiIf condition={(s) => !s.thread.isRunning}>
-              <Button size="icon" className="size-7 rounded-lg" onClick={handleSend}>
-                <ArrowUpIcon className="size-4" />
-              </Button>
+              {guestMode ? (
+                <Button size="icon" className="size-7 rounded-lg" onClick={handleSend}>
+                  <ArrowUpIcon className="size-4" />
+                </Button>
+              ) : (
+                <BackgroundTaskAwareSend onSend={handleSend} />
+              )}
             </AuiIf>
             <AuiIf condition={(s) => s.thread.isRunning}>
               <ComposerPrimitive.Cancel asChild>
@@ -318,7 +325,7 @@ function DisplayPreferenceToggles({
                 size="sm"
                 pressed={preferences.showThinking}
                 onPressedChange={(showThinking) => onChange({ ...preferences, showThinking })}
-                aria-label="显示可公开的推理摘要"
+                aria-label="显示思考过程"
                 className="size-7 min-w-7 gap-0 p-0"
               />
             }
@@ -326,7 +333,7 @@ function DisplayPreferenceToggles({
             <BrainCircuitIcon className="size-3.5" />
             <span className="sr-only">思考</span>
           </TooltipTrigger>
-          <TooltipContent>显示可公开的推理摘要；不会展示模型原始思维链。</TooltipContent>
+          <TooltipContent>显示模型的思考过程（需模型开启深度思考）。</TooltipContent>
         </Tooltip>
       </div>
     </TooltipProvider>
@@ -373,5 +380,64 @@ function ModelSelectorSlot({
         label: "自动"
       }}
     />
+  )
+}
+
+/** 后台仍在推进（非等待人工、非终态）的任务状态 */
+const BACKGROUND_ACTIVE_STATUSES: ReadonlySet<TaskStatus> = new Set([
+  "PLANNING",
+  "READY",
+  "RUNNING",
+  "VERIFYING",
+  "PAUSING",
+  "CANCELING"
+])
+
+/**
+ * 发送按钮：对话流本身空闲、但当前对话的持久任务仍在后台执行（如审批通过后的续跑）时，
+ * 显示运行态并支持取消任务；否则为普通发送按钮。任务列表复用 TanStack Query 缓存，不新增状态源。
+ */
+function BackgroundTaskAwareSend({ onSend }: { onSend: () => void }) {
+  const queryClient = useQueryClient()
+  const mainThreadId = useAuiState((state) => state.threads.mainThreadId)
+  const conversationId = mainThreadId === "main" ? "" : mainThreadId
+  const { data: tasks = [] } = useQuery({
+    queryKey: taskKeys.list(conversationId),
+    queryFn: () => taskApi.list(conversationId),
+    enabled: conversationId.length > 0
+  })
+  const activeTask = tasks.find((task) => BACKGROUND_ACTIVE_STATUSES.has(task.status))
+  const cancel = useMutation({
+    mutationFn: (taskId: string) => taskApi.cancel(taskId, "用户在输入框取消运行中的任务"),
+    onSuccess: () => toast.success("任务已进入取消流程"),
+    onError: () => toast.error("取消任务失败，请重试"),
+    onSettled: () => void queryClient.invalidateQueries({ queryKey: taskKeys.all })
+  })
+
+  if (!activeTask) {
+    return (
+      <Button size="icon" className="size-7 rounded-lg" onClick={onSend}>
+        <ArrowUpIcon className="size-4" />
+      </Button>
+    )
+  }
+  const canceling = activeTask.status === "CANCELING" || cancel.isPending
+  return (
+    <Button
+      type="button"
+      variant="secondary"
+      size="icon"
+      className="size-7 rounded-lg"
+      disabled={canceling}
+      aria-label={canceling ? "任务取消中" : "取消运行中的任务"}
+      title={canceling ? "任务取消中" : "任务运行中，点击取消"}
+      onClick={() => cancel.mutate(activeTask.taskId)}
+    >
+      {canceling ? (
+        <LoaderCircleIcon className="size-4 animate-spin" />
+      ) : (
+        <SquareIcon className="size-3 fill-current" />
+      )}
+    </Button>
   )
 }

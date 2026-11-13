@@ -107,7 +107,10 @@ class AssistantExecutionServiceTest {
                         mock(com.xuejiai.aaf.module.billing.api.ParallelTaskQuotaApi.class),
                         mock(
                                 com.xuejiai.aaf.framework.intelligent.shared.event
-                                        .ExecutionLiveEventPort.class));
+                                        .ExecutionLiveEventPort.class),
+                        mock(
+                                com.xuejiai.aaf.framework.intelligent.shared.event
+                                        .ExecutionEventStorePort.class));
         OrgContext.setCurrentOrgId(11L);
         OrgContext.setCurrentWorkspaceId(13L);
         try {

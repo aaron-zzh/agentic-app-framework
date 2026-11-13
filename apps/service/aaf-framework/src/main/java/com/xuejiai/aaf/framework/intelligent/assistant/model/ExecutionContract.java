@@ -93,6 +93,23 @@ public record ExecutionContract(
         }
     }
 
+    /** 在原契约上追加允许动作，其余边界（预算、期限、停止条件、接管策略）不变。 */
+    public ExecutionContract withAdditionalActions(Set<String> actions) {
+        var merged = new java.util.LinkedHashSet<>(allowedActions);
+        merged.addAll(Objects.requireNonNull(actions, "actions 不能为空"));
+        return new ExecutionContract(
+                budget,
+                deadline,
+                maxModelCalls,
+                maxToolCalls,
+                merged,
+                stopConditions,
+                retryPolicy,
+                notificationPolicy,
+                responsibleOwner,
+                takeoverPolicy);
+    }
+
     public void requireAction(String action) {
         if (action == null || action.isBlank() || !allowedActions.contains(action)) {
             throw new IllegalStateException("执行契约未允许动作: " + action);

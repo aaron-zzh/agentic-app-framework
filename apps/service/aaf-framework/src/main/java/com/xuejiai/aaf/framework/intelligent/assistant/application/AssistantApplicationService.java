@@ -25,12 +25,14 @@ import com.xuejiai.aaf.framework.intelligent.agent.model.AgentMessage;
 import com.xuejiai.aaf.framework.intelligent.agent.model.ExecutionPolicy;
 import com.xuejiai.aaf.framework.intelligent.agent.model.InvocationContext;
 import com.xuejiai.aaf.framework.intelligent.agent.model.ModelSelectionRequirement;
+import com.xuejiai.aaf.framework.intelligent.agent.model.PendingToolCall;
 import com.xuejiai.aaf.framework.intelligent.agent.model.SubagentSpec;
 import com.xuejiai.aaf.framework.intelligent.agent.model.ToolAuthorizationContext;
 import com.xuejiai.aaf.framework.intelligent.agent.model.ToolAuthorizationContext.ToolAuthorizationRule;
 import com.xuejiai.aaf.framework.intelligent.agent.model.ToolRef;
 import com.xuejiai.aaf.framework.intelligent.agent.port.AgentExecutionPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.SkillCatalogPort;
+import com.xuejiai.aaf.framework.intelligent.agent.port.SkillToolCatalogPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantDefinition;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.CompletionDecision;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.EffectiveContextManifest;
@@ -51,6 +53,7 @@ import com.xuejiai.aaf.framework.intelligent.assistant.model.Task.Status;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskPlan;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantCommandPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantDefinitionPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationRolePort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.DomainContextPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.EffectiveContextPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ExecutionProfileSnapshotPort;
@@ -114,9 +117,11 @@ public final class AssistantApplicationService implements AssistantCommandPort {
     private final TaskUnitOfWork tasks;
     private final TaskMaterializationPort materializations;
     private final TaskPlanPort taskBoards;
-    private final RoleSelector roleSelector;
+    private final ObjectProvider<ConversationRolePort> conversationRoles;
+    private final DirectRoleHandoffRegistry roleHandoffs;
     private final SystemSkillBindingPort systemSkillBindings;
     private final SkillCatalogPort skillCatalog;
+    private final SkillToolCatalogPort skillTools;
     private final EffectiveSkillResolver effectiveSkillResolver;
     private final EffectiveToolResolver effectiveToolResolver;
     private final SkillDecisionAuditPort skillDecisionAudits;
@@ -141,9 +146,11 @@ public final class AssistantApplicationService implements AssistantCommandPort {
             TaskUnitOfWork tasks,
             TaskMaterializationPort materializations,
             TaskPlanPort taskBoards,
-            RoleSelector roleSelector,
+            ObjectProvider<ConversationRolePort> conversationRoles,
+            DirectRoleHandoffRegistry roleHandoffs,
             SystemSkillBindingPort systemSkillBindings,
             SkillCatalogPort skillCatalog,
+            SkillToolCatalogPort skillTools,
             EffectiveSkillResolver effectiveSkillResolver,
             EffectiveToolResolver effectiveToolResolver,
             ToolVisibilityFilter toolVisibility,
@@ -176,10 +183,13 @@ public final class AssistantApplicationService implements AssistantCommandPort {
         this.tasks = Objects.requireNonNull(tasks, "tasks 不能为空");
         this.materializations = Objects.requireNonNull(materializations, "materializations 不能为空");
         this.taskBoards = Objects.requireNonNull(taskBoards, "taskBoards 不能为空");
-        this.roleSelector = Objects.requireNonNull(roleSelector, "roleSelector 不能为空");
+        this.conversationRoles =
+                Objects.requireNonNull(conversationRoles, "conversationRoles 不能为空");
+        this.roleHandoffs = Objects.requireNonNull(roleHandoffs, "roleHandoffs 不能为空");
         this.systemSkillBindings =
                 Objects.requireNonNull(systemSkillBindings, "systemSkillBindings 不能为空");
         this.skillCatalog = Objects.requireNonNull(skillCatalog, "skillCatalog 不能为空");
+        this.skillTools = Objects.requireNonNull(skillTools, "skillTools 不能为空");
         this.effectiveSkillResolver =
                 Objects.requireNonNull(effectiveSkillResolver, "effectiveSkillResolver 不能为空");
         this.effectiveToolResolver =
@@ -246,109 +256,206 @@ public final class AssistantApplicationService implements AssistantCommandPort {
         var trace = ExecutionTraceRecorder.start(executionTraceEnabled, command);
         // 派发线程没有 HTTP 请求上下文：用命令中的可信 tenantId（orgId）与冻结在执行意图里的
         // workspaceId 恢复组织上下文，覆盖同步准备阶段（定义/Skill/审计等按组织过滤的 Repository）。
-        return Flux.defer(
-                        () ->
-                                OrgContext.runIfAbsent(
-                                        orgIdOf(command),
-                                        invocation.executionIntent().workspaceId(),
-                                        () ->
-                                                direct
-                                                        ? executeDirect(invocation, trace)
-                                                        : command.operation()
-                                                                        == AssistantCommand
-                                                                                .Operation.SUBTASK
-                                                                ? executeNode(invocation, trace)
-                                                                : executeAgent(
-                                                                        invocation,
-                                                                        taskRef,
-                                                                        taskProgressed,
-                                                                        trace)))
-                .doOnNext(event -> failureSequence.accumulateAndGet(event.sequence(), Math::max))
-                .onErrorResume(
-                        failure -> {
-                            var trackedTask = taskRef.get();
-                            log.warn(
-                                    "[Assistant协调] 执行失败，已进入失败收口：executionId={}，taskId={}，assistantId={}，任务状态={}，错误类型={}",
-                                    command.executionId().value(),
-                                    taskKey(command),
-                                    command.assistantId().value(),
-                                    trackedTask == null ? null : trackedTask.status(),
-                                    failure.getClass().getName(),
-                                    failure);
-                            trace.failure(failure);
-                            return direct
-                                    ? failDirect(
-                                            command, failureSequence.incrementAndGet(), failure)
-                                    : failTask(
-                                            command,
-                                            taskRef,
-                                            taskProgressed.get(),
-                                            failureSequence.incrementAndGet(),
+        var pipeline =
+                Flux.defer(
+                                () ->
+                                        OrgContext.runIfAbsent(
+                                                orgIdOf(command),
+                                                invocation.executionIntent().workspaceId(),
+                                                () ->
+                                                        direct
+                                                                ? executeDirect(invocation, trace)
+                                                                : command.operation()
+                                                                                == AssistantCommand
+                                                                                        .Operation
+                                                                                        .SUBTASK
+                                                                        ? executeNode(
+                                                                                invocation, trace)
+                                                                        : executeAgent(
+                                                                                invocation,
+                                                                                taskRef,
+                                                                                taskProgressed,
+                                                                                trace)))
+                        .doOnNext(
+                                event ->
+                                        failureSequence.accumulateAndGet(
+                                                event.sequence(), Math::max))
+                        .onErrorResume(
+                                failure -> {
+                                    var trackedTask = taskRef.get();
+                                    log.warn(
+                                            "[Assistant协调] 执行失败，已进入失败收口：executionId={}，taskId={}，assistantId={}，任务状态={}，错误类型={}",
+                                            command.executionId().value(),
+                                            taskKey(command),
+                                            command.assistantId().value(),
+                                            trackedTask == null ? null : trackedTask.status(),
+                                            failure.getClass().getName(),
                                             failure);
-                        })
-                .doOnNext(trace::observe)
-                .concatMap(
-                        event ->
-                                shouldPersistEvent(event)
-                                        ? eventStore.append(event, command.lease())
-                                        : reactor.core.publisher.Mono.just(event))
-                // 瞬态增量与已落库事件统一实时发布；入口订阅方据此转发，不再依赖轮询事件表
-                .doOnNext(liveEvents::publish)
-                .doOnNext(
+                                    trace.failure(failure);
+                                    return direct
+                                            ? failDirect(
+                                                    command,
+                                                    failureSequence.incrementAndGet(),
+                                                    failure)
+                                            : failTask(
+                                                    command,
+                                                    taskRef,
+                                                    taskProgressed.get(),
+                                                    failureSequence.incrementAndGet(),
+                                                    failure);
+                                })
+                        .doOnNext(trace::observe)
+                        .concatMap(
+                                event ->
+                                        shouldPersistEvent(event)
+                                                ? eventStore.append(event, command.lease())
+                                                : reactor.core.publisher.Mono.just(event))
+                        // 瞬态增量与已落库事件统一实时发布；入口订阅方据此转发，不再依赖轮询事件表
+                        .doOnNext(liveEvents::publish)
+                        .doOnNext(
+                                event -> {
+                                    if (event.type() != ExecutionEventType.MESSAGE_DELTA
+                                            && event.type() != ExecutionEventType.REASONING_DELTA
+                                            && event.type()
+                                                    != ExecutionEventType.TOOL_CALL_ARGS_DELTA) {
+                                        log.debug(
+                                                "[执行事件·框架落库] stage=event_emitted executionId={} taskId={} "
+                                                        + "sequence={} eventType={} status={} ownerType={}",
+                                                command.executionId().value(),
+                                                taskKey(command),
+                                                event.sequence(),
+                                                event.type(),
+                                                event.status(),
+                                                event.ownerType());
+                                    }
+                                })
+                        .doOnError(
+                                failure -> {
+                                    log.warn(
+                                            "[Assistant协调] 事件流异常关闭：executionId={}，taskId={}，错误类型={}",
+                                            command.executionId().value(),
+                                            taskKey(command),
+                                            failure.getClass().getName(),
+                                            failure);
+                                    trace.failure(failure);
+                                })
+                        .doFinally(
+                                signalType -> {
+                                    // 实时订阅的收口由入口按交付节点与等待点判定（RunDeliveryTracker），
+                                    // 单个节点执行结束不再结束整个任务的实时流
+                                    var durationMs = elapsedMillis(startedAtNanos);
+                                    log.debug(
+                                            "[AssistantExecution] stage=invocation_closed executionId={} taskId={} "
+                                                    + "signal={} durationMs={}",
+                                            command.executionId().value(),
+                                            taskKey(command),
+                                            signalType,
+                                            durationMs);
+                                    trace.finish(signalType.name(), durationMs);
+                                })
+                        // 组织上下文必须显式写入 Reactor Context：runIfAbsent 在 subscribe 后（Flux.defer 惰性）才设置
+                        // ThreadLocal，晚于 Reactor 自动 contextCapture 的捕获点，光靠 ThreadLocalAccessor
+                        // 无法传播到
+                        // boundedElastic 等异步线程；写入 Context 后，注册的 accessor 才能在每次跨线程调度时恢复 org。
+                        .contextWrite(
+                                ctx -> {
+                                    var next = ctx;
+                                    var orgId = orgIdOf(command);
+                                    if (orgId != null) {
+                                        next = next.put(OrgContext.ORG_ID_CONTEXT_KEY, orgId);
+                                    }
+                                    var wsId = invocation.executionIntent().workspaceId();
+                                    if (wsId != null) {
+                                        next = next.put(OrgContext.WORKSPACE_ID_CONTEXT_KEY, wsId);
+                                    }
+                                    return next;
+                                });
+        if (!direct) {
+            return pipeline;
+        }
+        // 角色切换续接（ADR-011）：前一执行以 ROLE_SWITCHED 收口后，在整条管线外递归发起新角色执行，
+        // 续接执行拥有独立的持久化、失败收口与追踪；未切换或被取消时只清理登记。
+        var switched = new AtomicBoolean();
+        var lastSequence = new AtomicLong(command.sequenceBase());
+        return pipeline.doOnNext(
                         event -> {
-                            if (event.type() != ExecutionEventType.MESSAGE_DELTA
-                                    && event.type() != ExecutionEventType.TOOL_CALL_ARGS_DELTA) {
-                                log.debug(
-                                        "[AssistantExecution] stage=event_emitted executionId={} taskId={} "
-                                                + "sequence={} eventType={} status={} ownerType={}",
-                                        command.executionId().value(),
-                                        taskKey(command),
-                                        event.sequence(),
-                                        event.type(),
-                                        event.status(),
-                                        event.ownerType());
+                            lastSequence.accumulateAndGet(event.sequence(), Math::max);
+                            if (event.type() == ExecutionEventType.ROLE_SWITCHED) {
+                                switched.set(true);
                             }
                         })
-                .doOnError(
-                        failure -> {
-                            log.warn(
-                                    "[Assistant协调] 事件流异常关闭：executionId={}，taskId={}，错误类型={}",
-                                    command.executionId().value(),
-                                    taskKey(command),
-                                    failure.getClass().getName(),
-                                    failure);
-                            trace.failure(failure);
-                        })
-                .doFinally(
-                        signalType -> {
-                            // 实时订阅的收口由入口按交付节点与等待点判定（RunDeliveryTracker），
-                            // 单个节点执行结束不再结束整个任务的实时流
-                            var durationMs = elapsedMillis(startedAtNanos);
-                            log.debug(
-                                    "[AssistantExecution] stage=invocation_closed executionId={} taskId={} "
-                                            + "signal={} durationMs={}",
-                                    command.executionId().value(),
-                                    taskKey(command),
-                                    signalType,
-                                    durationMs);
-                            trace.finish(signalType.name(), durationMs);
-                        })
-                // 组织上下文必须显式写入 Reactor Context：runIfAbsent 在 subscribe 后（Flux.defer 惰性）才设置
-                // ThreadLocal，晚于 Reactor 自动 contextCapture 的捕获点，光靠 ThreadLocalAccessor 无法传播到
-                // boundedElastic 等异步线程；写入 Context 后，注册的 accessor 才能在每次跨线程调度时恢复 org。
-                .contextWrite(
-                        ctx -> {
-                            var next = ctx;
-                            var orgId = orgIdOf(command);
-                            if (orgId != null) {
-                                next = next.put(OrgContext.ORG_ID_CONTEXT_KEY, orgId);
-                            }
-                            var wsId = invocation.executionIntent().workspaceId();
-                            if (wsId != null) {
-                                next = next.put(OrgContext.WORKSPACE_ID_CONTEXT_KEY, wsId);
-                            }
-                            return next;
-                        });
+                .concatWith(
+                        Flux.defer(
+                                () -> {
+                                    var handoff = roleHandoffs.take(command.executionId());
+                                    if (!switched.get() || handoff.isEmpty()) {
+                                        return Flux.<ExecutionEvent>empty();
+                                    }
+                                    return invoke(
+                                            roleHandoffInvocation(
+                                                    invocation,
+                                                    handoff.orElseThrow(),
+                                                    lastSequence.get()));
+                                }))
+                .doFinally(signal -> roleHandoffs.take(command.executionId()));
+    }
+
+    /**
+     * 构造角色切换后的续接调用：同一 Run、新 executionId（由前一执行确定性派生），路由改为 {@code ROUTE_FIXED(toRoleKey,
+     * skill=null)}，技能保持开放选择；续接后不再暴露 activate_role，每个 Run 最多切换一次。
+     */
+    private static AssistantInvocation roleHandoffInvocation(
+            AssistantInvocation origin, DirectRoleHandoffRegistry.Handoff handoff, long sequence) {
+        var command = origin.command();
+        var intent = origin.executionIntent();
+        var fixedIntent =
+                new ExecutionIntent(
+                        intent.interactionMode(),
+                        ExecutionIntent.RouteConstraint.ROUTE_FIXED,
+                        intent.clarificationPolicy(),
+                        new ExecutionIntent.ResolvedRoute(
+                                handoff.toRoleKey(), null, handoff.assistantRevision()),
+                        intent.artifactPolicy(),
+                        intent.actionAuthorizationPolicy(),
+                        intent.workspaceId(),
+                        intent.trustedProjectId(),
+                        intent.decomposition(),
+                        intent.aggregationRequirementsMaxChars());
+        var profile = command.invocationProfile();
+        var nextProfile =
+                new InvocationProfile(
+                        null,
+                        profile.memoryMode(),
+                        profile.invocationPolicy(),
+                        profile.userAttachments(),
+                        fixedIntent,
+                        profile.contextPlan(),
+                        profile.agentKind(),
+                        profile.agentKey(),
+                        profile.expectedAssistantRevision(),
+                        profile.toolScopeRestricted(),
+                        profile.allowedToolKeys());
+        var nextExecutionId =
+                new com.xuejiai.aaf.framework.intelligent.shared.id.StableId.ExecutionId(
+                        UUID.nameUUIDFromBytes(
+                                        ("role-handoff|" + command.executionId().value())
+                                                .getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                                .toString());
+        var nextCommand =
+                command.forRoleHandoff(nextExecutionId, sequence, nextProfile, Instant.now());
+        log.info(
+                "[角色切换] 续接执行开始：runId={}，originExecutionId={}，executionId={}，roleKey={}",
+                command.runId().value(),
+                command.executionId().value(),
+                nextExecutionId.value(),
+                handoff.toRoleKey());
+        return new AssistantInvocation(
+                nextCommand,
+                null,
+                origin.memoryMode(),
+                origin.invocationPolicy(),
+                origin.userAttachments(),
+                fixedIntent);
     }
 
     static boolean shouldPersistEvent(ExecutionEvent event) {
@@ -511,13 +618,15 @@ public final class AssistantApplicationService implements AssistantCommandPort {
         definition.requireControlMode(command.controlMode());
         requirePublished(definition);
         logDefinitionResolved(command, definition);
-        var profileCandidate = resolveExecutionProfile(invocation, definition);
+        var roleSelectedBy = new AtomicReference<String>();
+        var profileCandidate = resolveExecutionProfile(invocation, definition, roleSelectedBy);
         emitted.add(
                 roleResolvedEvent(
                         command,
                         sequence.incrementAndGet(),
                         ExecutionEventStatus.RUNNING,
-                        profileCandidate));
+                        profileCandidate,
+                        roleSelectedBy.get()));
         var controlledContext = executionContext(command, definition, profileCandidate);
         var profile =
                 freezeCompressedProfile(invocation, profileCandidate, controlledContext.messages());
@@ -574,7 +683,31 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                                         Execution.Status.PROMOTED,
                                         "DIRECT execution 已提升为 canonical Task",
                                         TurnEndReason.USER_TURN_END,
-                                        "");
+                                        "",
+                                        promotionDetails(command));
+                            }
+                            var handoff = roleHandoffs.peek(command.executionId());
+                            if (handoff.isPresent()
+                                    && agentEvents.stream()
+                                            .noneMatch(
+                                                    event ->
+                                                            event.status()
+                                                                    == ExecutionEventStatus
+                                                                            .CANCELED)) {
+                                // 角色切换收口：不跑完成校验、不写会话与长期记忆，正文由续接执行的新角色给出（ADR-011）
+                                var switched = handoff.orElseThrow();
+                                tasks.updateExecution(
+                                        command.tenantId(),
+                                        command.executionId(),
+                                        Execution.Status.SUPERSEDED,
+                                        Instant.now());
+                                trace.validation("未验证（角色切换）", switched.reason());
+                                log.info(
+                                        "[角色切换] 前一执行已收口：executionId={}，status={}",
+                                        command.executionId().value(),
+                                        Execution.Status.SUPERSEDED);
+                                return roleSwitchedEvent(
+                                        command, sequence.incrementAndGet(), switched);
                             }
                             var canceled =
                                     agentEvents.stream()
@@ -675,7 +808,8 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                                         Execution.Status.PROMOTED,
                                         "DIRECT execution 已提升为 canonical Task",
                                         TurnEndReason.USER_TURN_END,
-                                        "");
+                                        "",
+                                        promotionDetails(command));
                             }
                             if (current.isPresent() && !current.orElseThrow().terminal()) {
                                 tasks.updateExecution(
@@ -707,6 +841,51 @@ public final class AssistantApplicationService implements AssistantCommandPort {
             String reason,
             TurnEndReason endReason,
             String reply) {
+        return directTerminalEvent(
+                command, sequence, type, status, reason, endReason, reply, Map.of());
+    }
+
+    /** 升级后协调者角色与形态，读取失败时只缺字段，不影响升级收口。 */
+    private Map<String, Object> promotionDetails(AssistantCommand command) {
+        var details = new LinkedHashMap<String, Object>();
+        try {
+            var taskId =
+                    TaskCommandService.promotionTaskId(command.tenantId(), command.executionId());
+            taskBoards
+                    .find(command.tenantId(), taskId)
+                    .map(plan -> plan.nodes().get("coordinator"))
+                    .map(TaskPlan.TaskNode::roleKey)
+                    .ifPresent(roleKey -> details.put("roleKey", roleKey));
+            var checkpoint = tasks.findTask(command.tenantId(), taskId).map(Task::checkpoint);
+            checkpoint
+                    .map(value -> value.annotations().get("promotionShape"))
+                    .filter(String.class::isInstance)
+                    .ifPresent(shape -> details.put("shape", shape));
+            // 升级触发方：网关携带待执行调用自动升级为 TOOL_GATE，模型显式调用 promote_to_task 为 MODEL
+            var pendingCall =
+                    checkpoint.flatMap(
+                            value -> PendingToolCall.fromAnnotation(value.annotations()));
+            details.put("trigger", pendingCall.isPresent() ? "TOOL_GATE" : "MODEL");
+            pendingCall.ifPresent(call -> details.put("pendingToolName", call.toolName()));
+        } catch (RuntimeException failure) {
+            log.warn(
+                    "[任务升级] 读取升级意图失败：executionId={}，错误类型={}",
+                    command.executionId().value(),
+                    failure.getClass().getName());
+        }
+        return details;
+    }
+
+    /** {@code promotionDetails} 仅 EXECUTION_PROMOTED 使用：升级后的协调者角色与形态（ADR-011）。 */
+    private static ExecutionEvent directTerminalEvent(
+            AssistantCommand command,
+            long sequence,
+            ExecutionEventType type,
+            Execution.Status status,
+            String reason,
+            TurnEndReason endReason,
+            String reply,
+            Map<String, Object> promotionDetails) {
         var values = new LinkedHashMap<String, Object>();
         values.put("scope", Execution.Scope.DIRECT.name());
         values.put("executionStatus", status.name());
@@ -719,6 +898,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                     TaskCommandService.promotionTaskId(command.tenantId(), command.executionId())
                             .value());
             values.put("taskStatus", Task.Status.READY.name());
+            values.putAll(promotionDetails);
             return new ExecutionEvent(
                     CanonicalExecutionEventId.of(
                             command.tenantId(), command.executionId(), "execution-promoted"),
@@ -995,8 +1175,15 @@ public final class AssistantApplicationService implements AssistantCommandPort {
             task = prepareTask(command, sequence, emitted, taskRef, taskProgressed);
             taskRef.set(task);
         }
-        var profileCandidate = resolveExecutionProfile(invocation, definition);
-        emitted.add(roleResolvedEvent(command, sequence.incrementAndGet(), task, profileCandidate));
+        var roleSelectedBy = new AtomicReference<String>();
+        var profileCandidate = resolveExecutionProfile(invocation, definition, roleSelectedBy);
+        emitted.add(
+                roleResolvedEvent(
+                        command,
+                        sequence.incrementAndGet(),
+                        task,
+                        profileCandidate,
+                        roleSelectedBy.get()));
 
         var controlledContext = executionContext(command, definition, profileCandidate);
         var profile =
@@ -1515,6 +1702,27 @@ public final class AssistantApplicationService implements AssistantCommandPort {
             ExecutionTraceRecorder trace) {
         var command = invocation.command();
         var task = taskRef.get();
+        // 授权/澄清等待已由 HITL 事务原子提交（Task、Execution 等待态 + Dispatch 关闭 + canonical 事件），
+        // 节点此时已失去租约，不再追加校验与暂停事件，也不提交结果
+        var committedWait =
+                agentEvents.stream()
+                        .filter(event -> command.executionId().equals(event.executionId()))
+                        .filter(AssistantApplicationService::committedHumanWait)
+                        .findFirst()
+                        .orElse(null);
+        if (committedWait != null) {
+            trace.validation("AWAITING_HUMAN", "等待已随 HITL 事务提交");
+            traceDelegation(trace, command, agentEvents);
+            log.info(
+                    "[AssistantExecution] stage=task_node_validation executionId={} taskId={} nodeId={} "
+                            + "outcome=AWAITING_HUMAN waitEventType={} agentEventCount={}",
+                    command.executionId().value(),
+                    taskKey(command),
+                    command.nodeIdentity().nodeId(),
+                    committedWait.type(),
+                    agentEvents.size());
+            return Flux.empty();
+        }
         var successfulRun =
                 agentEvents.stream()
                                 .anyMatch(event -> event.type() == ExecutionEventType.RUN_COMPLETED)
@@ -1627,36 +1835,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                                 TurnEndReason.REPAIR_SCHEDULED,
                                 agentEvents));
             }
-            case NEEDS_USER -> {
-                var authorization =
-                        agentEvents.stream()
-                                .anyMatch(
-                                        event ->
-                                                event.status()
-                                                        == ExecutionEventStatus
-                                                                .AWAITING_AUTHORIZATION);
-                events.add(
-                        taskEvent(
-                                command,
-                                sequence.incrementAndGet(),
-                                ExecutionEventType.VALIDATION_FAILED,
-                                task,
-                                decision.reason(),
-                                agentId,
-                                null));
-                events.add(
-                        terminalTaskEvent(
-                                command,
-                                sequence.incrementAndGet(),
-                                ExecutionEventType.EXECUTION_PAUSED,
-                                task,
-                                decision.reason(),
-                                agentId,
-                                authorization
-                                        ? TurnEndReason.AUTHORIZATION_NEEDED
-                                        : TurnEndReason.CLARIFICATION_NEEDED,
-                                agentEvents));
-            }
+            case NEEDS_USER -> throw new IllegalStateException("NEEDS_USER 必须伴随已提交的等待事件");
             case FAILED ->
                     events.add(
                             terminalTaskEvent(
@@ -1681,6 +1860,17 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                                     agentEvents));
         }
         return Flux.fromIterable(events);
+    }
+
+    /** 随 HITL 事务落库的 canonical 等待事件（授权/澄清）。 */
+    private static boolean committedHumanWait(ExecutionEvent event) {
+        return switch (event.type()) {
+            case AUTHORIZATION_REQUESTED ->
+                    event.status() == ExecutionEventStatus.AWAITING_AUTHORIZATION;
+            case CLARIFICATION_REQUESTED ->
+                    event.status() == ExecutionEventStatus.AWAITING_CLARIFICATION;
+            default -> false;
+        };
     }
 
     private Task verifying(
@@ -1826,6 +2016,17 @@ public final class AssistantApplicationService implements AssistantCommandPort {
 
     private ExecutionProfileSnapshot resolveExecutionProfile(
             AssistantInvocation invocation, AssistantDefinition definition) {
+        return resolveExecutionProfile(invocation, definition, new AtomicReference<>());
+    }
+
+    /**
+     * {@code selectedByOut} 回传本次角色来源，供 ROLE_RESOLVED 事件公开；复用已冻结画像时为 {@code
+     * EXECUTION_PROFILE_REUSED}。
+     */
+    private ExecutionProfileSnapshot resolveExecutionProfile(
+            AssistantInvocation invocation,
+            AssistantDefinition definition,
+            AtomicReference<String> selectedByOut) {
         var command = invocation.command();
         var expectedRevision = command.invocationProfile().expectedAssistantRevision();
         if (expectedRevision != null && expectedRevision != definition.version().value()) {
@@ -1833,6 +2034,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
         }
         var existing = executionProfiles.find(command.tenantId(), command.executionId());
         if (existing.isPresent()) {
+            selectedByOut.set("EXECUTION_PROFILE_REUSED");
             var snapshot = existing.orElseThrow();
             if (!Objects.equals(snapshot.taskId(), command.taskId())
                     || !snapshot.assistantId().equals(command.assistantId())) {
@@ -1872,9 +2074,9 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                         command.invocationProfile().agentKind(),
                         command.taskId() != null,
                         intent.decomposition());
-        var systemOnDemandSkillKeys =
-                SkillBinding.skillKeys(systemBindings, SkillActivationMode.ON_DEMAND);
-        final RoleSelector.RoleSelection roleSelection;
+        final Role selectedRole;
+        final String roleSelectedBy;
+        final String roleSelectionReason;
         if (route != null) {
             // 节点的 Role/Skill 已在计划阶段校验，请求 Skill 只约束根命令
             if (command.nodeIdentity() == null
@@ -1884,7 +2086,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                     && !Objects.equals(invocation.requestedSkillKey(), route.skillKey())) {
                 throw new IllegalArgumentException("请求 Skill 与 FIXED Route 不一致");
             }
-            var fixedRole =
+            selectedRole =
                     definition.roles().stream()
                             .filter(candidate -> candidate.key().equals(route.roleKey()))
                             .findFirst()
@@ -1893,24 +2095,50 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                                             new IllegalStateException(
                                                     "FIXED Route 的 Role 不属于 Assistant: "
                                                             + route.roleKey()));
-            roleSelection =
-                    new RoleSelector.RoleSelection(
-                            fixedRole, "SERVER_FIXED_ROUTE", "使用服务端已解析的不可变 Route");
+            roleSelectedBy = "SERVER_FIXED_ROUTE";
+            roleSelectionReason = "使用服务端已解析的不可变 Route";
         } else {
-            roleSelection =
-                    roleSelector.select(
-                            new RoleSelector.RoleSelectionRequest(
-                                    definition,
-                                    systemOnDemandSkillKeys,
-                                    command.input(),
-                                    invocation.requestedSkillKey(),
-                                    command.userId()));
+            // 未锁定角色（ADR-011）：从会话当前角色起步，失效或未记录时用助理默认角色；切换由协调者 activate_role 完成
+            var conversationRoleKey = conversationRoleKey(command);
+            var conversationRole =
+                    conversationRoleKey == null
+                            ? Optional.<Role>empty()
+                            : definition.roles().stream()
+                                    .filter(
+                                            candidate ->
+                                                    candidate.key().equals(conversationRoleKey))
+                                    .findFirst();
+            if (conversationRole.isPresent()) {
+                selectedRole = conversationRole.orElseThrow();
+                roleSelectedBy = "CONVERSATION_ROLE";
+                roleSelectionReason = "未锁定角色，沿用会话当前角色";
+            } else {
+                if (conversationRoleKey != null) {
+                    log.warn(
+                            "[角色选择] 会话角色已失效，回退默认角色：executionId={}，conversationId={}，"
+                                    + "会话角色={}，默认角色={}",
+                            command.executionId().value(),
+                            command.conversationId().value(),
+                            conversationRoleKey,
+                            definition.defaultRole().key());
+                }
+                selectedRole = definition.defaultRole();
+                roleSelectedBy = "DEFAULT_ROLE";
+                roleSelectionReason = "未锁定角色且无有效会话角色，使用助理默认角色";
+            }
         }
-        var role = definition.requireRole(roleSelection.role().key());
-        if (!role.equals(roleSelection.role())) {
-            throw new IllegalStateException("RoleSelector 返回内容与 Assistant 已发布候选不一致");
-        }
-        appendRoleAudit(command, roleSelection);
+        var role = definition.requireRole(selectedRole.key());
+        selectedByOut.set(roleSelectedBy);
+        log.info(
+                "[角色选择] 角色已确定：executionId={}，taskId={}，roleKey={}，selectedBy={}，"
+                        + "固定路由={}，意图路由约束={}",
+                command.executionId().value(),
+                taskKey(command),
+                role.key(),
+                roleSelectedBy,
+                route != null,
+                intent.routeConstraint());
+        appendRoleAudit(command, role, roleSelectedBy, roleSelectionReason);
         var scopedBindings =
                 scopedSkillBindings(
                         systemBindings, definition.assistantSkillBindings(), role.skillBindings());
@@ -2066,9 +2294,11 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                         .anyMatch(
                                 com.xuejiai.aaf.framework.intelligent.agent.model.ActivatedSkill
                                         ::inheritRoleTools);
-        var roleAllowedToolNames = allowedToolNames(role.toolKeys(), command, definition, "Role");
-        var assistantAllowedToolNames =
+        var roleAllowed = allowedToolNames(role.toolKeys(), command, definition, "Role");
+        var roleAllowedToolNames = roleAllowed.allowed();
+        var assistantAllowed =
                 allowedToolNames(definition.assistantToolKeys(), command, definition, "Assistant");
+        var assistantAllowedToolNames = assistantAllowed.allowed();
         // 聚合者是唯一无业务工具的智能体；协调者与执行者同样持有 Role/Skill 解析出的业务工具（ADR-008）
         var aggregator =
                 command.invocationProfile().agentKind() == InvocationProfile.AgentKind.AGGREGATOR;
@@ -2093,20 +2323,79 @@ public final class AssistantApplicationService implements AssistantCommandPort {
         var agentAllowedTools = toolRefs(allowedToolNames);
         var roleAgentAllowedTools =
                 roleAllowedToolNames.isEmpty() ? List.<ToolRef>of() : agentAllowedTools;
-        var roleEffectiveTools =
-                effectiveToolResolver.resolve(
-                        roleSkillRequirements,
-                        roleInheritRoleTools,
-                        roleAllowedToolNames,
-                        roleAgentAllowedTools);
-        var assistantEffectiveTools =
-                activatedAssistantSkills.isEmpty()
-                        ? List.<ToolRef>of()
-                        : effectiveToolResolver.resolveAssistant(
-                                assistantSkillRequirements,
-                                assistantInheritRoleTools,
-                                assistantAllowedToolNames,
-                                agentAllowedTools);
+        // 已配置但仅因当前 controlMode 被过滤的 Skill 必需工具需升级任务才可用：从本次画像收窄并提示模型，
+        // 不再让只读请求整体失败；不在授权内或被调用 scope 过滤的工具仍交给解析器 fail-closed。
+        var taskRequiredToolNames = new java.util.TreeSet<String>();
+        taskRequiredToolNames.addAll(roleAllowed.requiringTask(roleSkillRequirements));
+        taskRequiredToolNames.addAll(assistantAllowed.requiringTask(assistantSkillRequirements));
+        if (!taskRequiredToolNames.isEmpty()) {
+            log.info(
+                    "[AssistantExecution] stage=skill_tools_require_task executionId={} taskId={} "
+                            + "controlMode={} skillCodes={} toolNames={}",
+                    command.executionId().value(),
+                    taskKey(command),
+                    command.controlMode(),
+                    skillCodes(activatedSkills),
+                    taskRequiredToolNames);
+            appendSelectionAudit(
+                    command,
+                    role,
+                    selection,
+                    "SKILL_TOOLS_REQUIRE_TASK",
+                    null,
+                    "AAF_POLICY",
+                    "controlMode=%s 下以下 Skill 必需工具仅任务态可用，已从本次画像收窄：%s"
+                            .formatted(command.controlMode(), taskRequiredToolNames));
+        }
+        // 工具声明的 required 语义：选中的工具都进入画像；required=false 的工具缺失授权时跳过，
+        // 只在 Skill 工具清单中标为不可用。任一已激活 Skill 声明为 required 即按必需处理。
+        var toolDeclarations =
+                skillTools.findByVersionIds(
+                        activatedSkills.stream()
+                                .map(skill -> skill.version().versionId())
+                                .collect(Collectors.toUnmodifiableSet()));
+        var requiredDeclaredToolNames =
+                toolDeclarations.values().stream()
+                        .flatMap(List::stream)
+                        .filter(SkillToolCatalogPort.SkillToolDeclaration::required)
+                        .map(SkillToolCatalogPort.SkillToolDeclaration::toolName)
+                        .collect(Collectors.toUnmodifiableSet());
+        var optionalToolNames =
+                toolDeclarations.values().stream()
+                        .flatMap(List::stream)
+                        .map(SkillToolCatalogPort.SkillToolDeclaration::toolName)
+                        .filter(toolName -> !requiredDeclaredToolNames.contains(toolName))
+                        .collect(Collectors.toUnmodifiableSet());
+        final List<ToolRef> roleEffectiveTools;
+        try {
+            roleEffectiveTools =
+                    effectiveToolResolver.resolve(
+                            withoutUnavailableOptional(
+                                    roleAllowed.narrow(roleSkillRequirements),
+                                    optionalToolNames,
+                                    roleAllowedToolNames),
+                            roleInheritRoleTools,
+                            roleAllowedToolNames,
+                            roleAgentAllowedTools);
+        } catch (IllegalStateException failure) {
+            throw skillToolResolutionFailure(failure, activatedRoleSkills, command);
+        }
+        final List<ToolRef> assistantEffectiveTools;
+        try {
+            assistantEffectiveTools =
+                    activatedAssistantSkills.isEmpty()
+                            ? List.<ToolRef>of()
+                            : effectiveToolResolver.resolveAssistant(
+                                    withoutUnavailableOptional(
+                                            assistantAllowed.narrow(assistantSkillRequirements),
+                                            optionalToolNames,
+                                            assistantAllowedToolNames),
+                                    assistantInheritRoleTools,
+                                    assistantAllowedToolNames,
+                                    agentAllowedTools);
+        } catch (IllegalStateException failure) {
+            throw skillToolResolutionFailure(failure, activatedAssistantSkills, command);
+        }
         var resolvedTools = mergeEffectiveTools(roleEffectiveTools, assistantEffectiveTools);
         // 最后一维交集：目录声明的 permissionCode 与执行用户实际持有的功能权限；只收窄可见性，不改调用期授权。
         var permittedTools = toolVisibility.visible(resolvedTools, command.userId().value());
@@ -2136,12 +2425,41 @@ public final class AssistantApplicationService implements AssistantCommandPort {
         } else {
             businessTools = permittedTools;
         }
-        var effectiveTools =
+        var baseEffectiveTools =
                 mergeEffectiveTools(
                         mergeEffectiveTools(
                                 businessTools, BuiltinControlToolProfile.resolve(command)),
                         BuiltinControlToolProfile.resolveKnowledgeSearch(
                                 effectiveKnowledgeBaseIds(command, definition, role.key())));
+        // 轻量态可升级时，仅因 controlMode 被过滤的 Skill 必需工具对模型可见但只能触发升级（promotionOnly）：
+        // 网关在 grant 查询与副作用之前拦截并自动转为任务；解析器的 fail-closed 不受影响，仍需通过用户功能权限
+        var promotionOnlyToolNames =
+                command.taskId() == null
+                                && baseEffectiveTools.stream()
+                                        .anyMatch(
+                                                tool ->
+                                                        tool.name()
+                                                                .equals(
+                                                                        PromoteDirectTaskTool
+                                                                                .TOOL_NAME))
+                        ? toolVisibility
+                                .visible(toolRefs(taskRequiredToolNames), command.userId().value())
+                                .stream()
+                                .map(ToolRef::name)
+                                .collect(Collectors.toUnmodifiableSet())
+                        : Set.<String>of();
+        var effectiveTools =
+                promotionOnlyToolNames.isEmpty()
+                        ? baseEffectiveTools
+                        : mergeEffectiveTools(
+                                baseEffectiveTools,
+                                toolRefs(new java.util.TreeSet<>(promotionOnlyToolNames)));
+        if (!promotionOnlyToolNames.isEmpty()) {
+            log.info(
+                    "[AssistantExecution] stage=promotion_only_tools executionId={} toolNames={}",
+                    command.executionId().value(),
+                    new java.util.TreeSet<>(promotionOnlyToolNames));
+        }
         log.info(
                 "[AssistantExecution] stage=skill_resolved executionId={} taskId={} selectionMode={} "
                         + "skillCodes={} skillVersions={} selectedBy={} effectiveToolCount={} "
@@ -2171,6 +2489,23 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                                         false,
                                         ToolAuthorizationContext.MissingGrantBehavior
                                                 .REQUEST_ON_DEMAND));
+                        return;
+                    }
+                    if (promotionOnlyToolNames.contains(tool.name())) {
+                        // 只能触发升级：不经 controlMode 校验，网关对其恒按需授权处理并自动转任务
+                        var policyRule = definition.toolPolicy().rules().get(tool.name());
+                        authorizationRules.put(
+                                tool.name(),
+                                new ToolAuthorizationRule(
+                                        switch (policyRule.effect()) {
+                                            case READ, GENERATED_CONTENT, HUMAN_HANDOFF -> true;
+                                            case REVERSIBLE_WRITE, IRREVERSIBLE_WRITE -> false;
+                                        },
+                                        policyRule.reversible(),
+                                        true,
+                                        ToolAuthorizationContext.MissingGrantBehavior
+                                                .REQUEST_ON_DEMAND,
+                                        true));
                         return;
                     }
                     definition.toolPolicy().requireAllowed(command.controlMode(), tool.name());
@@ -2246,7 +2581,14 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                                         command.userId(),
                                         intent.workspaceId(),
                                         intent.trustedProjectId()),
-                                invocation.requestedSkillKey()));
+                                invocation.requestedSkillKey(),
+                                command.taskId() != null,
+                                skillToolLines(
+                                        activatedSkills,
+                                        toolDeclarations,
+                                        effectiveTools,
+                                        taskRequiredToolNames,
+                                        command.taskId() == null)));
         var snapshot =
                 new ExecutionProfileSnapshot(
                         command.tenantId(),
@@ -2354,15 +2696,16 @@ public final class AssistantApplicationService implements AssistantCommandPort {
             long sequenceBase,
             List<AgentMessage> finalMessages) {
         var command = invocation.command();
-        var stateSlotId =
+        var execution =
                 command.taskId() == null
-                        ? command.executionId().value()
+                        ? null
                         : tasks.findExecution(command.tenantId(), command.executionId())
-                                .map(Execution::stateSlotId)
                                 .orElseThrow(
                                         () ->
                                                 new IllegalStateException(
                                                         "DELEGATED Agent 调用缺少 canonical Execution"));
+        var stateSlotId =
+                execution == null ? command.executionId().value() : execution.stateSlotId();
         var context =
                 new InvocationContext(
                         command.tenantId(),
@@ -2411,7 +2754,39 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                 sequenceBase,
                 finalMessages,
                 context,
-                command.resumeStateRequired());
+                command.resumeStateRequired(),
+                seededToolCall(command, profile, execution));
+    }
+
+    /**
+     * 协调者节点首轮重放轻量态携带的待执行调用（AAF-128）：仅协调者节点、非恢复、attempt 1 且 Task checkpoint 有携带调用时返回；工具不在本次有效工具内时
+     * fail-closed，节点按现有失败策略重试，attempt 2 走普通模型路径。
+     */
+    private PendingToolCall seededToolCall(
+            AssistantCommand command, ExecutionProfileSnapshot profile, Execution execution) {
+        if (execution == null
+                || command.nodeIdentity() == null
+                || command.nodeIdentity().kind() != NodeIdentity.NodeKind.COORDINATOR
+                || command.resumeStateRequired()
+                || execution.attemptNo() != 1) {
+            return null;
+        }
+        var checkpoint =
+                tasks.findTask(command.tenantId(), command.taskId())
+                        .map(Task::checkpoint)
+                        .orElse(null);
+        if (checkpoint == null) {
+            return null;
+        }
+        var call = PendingToolCall.fromAnnotation(checkpoint.annotations()).orElse(null);
+        if (call == null) {
+            return null;
+        }
+        if (profile.skillExecutionProfile().effectiveTools().stream()
+                .noneMatch(tool -> tool.name().equals(call.toolName()))) {
+            throw new IllegalStateException("待执行调用的工具不在协调者节点有效工具内: " + call.toolName());
+        }
+        return call;
     }
 
     private record ScopedSkillBinding(SkillScope scope, SkillBinding binding) {
@@ -2578,7 +2953,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
     }
 
     private void appendRoleAudit(
-            AssistantCommand command, RoleSelector.RoleSelection roleSelection) {
+            AssistantCommand command, Role role, String selectedBy, String reason) {
         skillDecisionAudits.append(
                 new SkillDecisionAuditEvent(
                         command.tenantId().value(),
@@ -2590,20 +2965,41 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                         taskKey(command),
                         command.executionId().value(),
                         command.runId().value(),
-                        roleSelection.role().key(),
+                        role.key(),
                         null,
                         "ROLE_SELECTED",
                         null,
                         null,
-                        roleSelection.role().skillKeys().stream().sorted().toList(),
+                        role.skillKeys().stream().sorted().toList(),
                         null,
-                        roleSelection.reason(),
-                        roleSelection.selectedBy(),
+                        reason,
+                        selectedBy,
                         List.of(),
                         null,
                         null,
                         command.correlationId().value(),
                         Instant.now()));
+    }
+
+    /** 会话当前角色；未提供端口实现或读取失败时视为无会话角色，不影响本轮执行。 */
+    private String conversationRoleKey(AssistantCommand command) {
+        var port = conversationRoles.getIfAvailable();
+        if (port == null) {
+            return null;
+        }
+        try {
+            return port.find(command.tenantId(), command.conversationId())
+                    .filter(value -> !value.isBlank())
+                    .map(String::trim)
+                    .orElse(null);
+        } catch (RuntimeException failure) {
+            log.warn(
+                    "[会话角色] 读取失败，按无会话角色处理：conversationId={}，错误类型={}",
+                    command.conversationId().value(),
+                    failure.getClass().getName(),
+                    failure);
+            return null;
+        }
     }
 
     private void appendSelectionAudit(
@@ -2730,37 +3126,150 @@ public final class AssistantApplicationService implements AssistantCommandPort {
         return intent.resolvedRoute();
     }
 
-    private static Set<String> allowedToolNames(
+    /**
+     * 按调用 scope 与当前 controlMode 过滤 Role/Assistant 已配置工具。
+     *
+     * <p>返回值同时给出"已配置且在 scope 内、仅因 controlMode 被过滤"的工具，供画像编译区分"需升级任务"与"未授权"。
+     */
+    private static AllowedToolNames allowedToolNames(
             Set<String> configuredToolNames,
             AssistantCommand command,
             AssistantDefinition definition,
             String owner) {
-        return configuredToolNames.stream()
-                .sorted()
+        var allowed = new java.util.TreeSet<String>();
+        var controlModeFiltered = new java.util.TreeSet<String>();
+        configuredToolNames.stream()
                 .filter(
                         toolName ->
                                 !command.invocationProfile().toolScopeRestricted()
                                         || command.invocationProfile()
                                                 .allowedToolKeys()
                                                 .contains(toolName))
-                .filter(
+                .forEach(
                         toolName -> {
                             var rule =
                                     Objects.requireNonNull(
                                             definition.toolPolicy().rules().get(toolName),
                                             owner + " 工具缺少 Assistant ToolPolicy: " + toolName);
-                            if (!definition
-                                    .toolPolicy()
-                                    .allows(command.controlMode(), rule.effect())) {
-                                return false;
-                            }
-                            return command.controlMode() != ExecutionEvent.ControlMode.COLLABORATIVE
-                                    || rule.effect()
-                                            != com.xuejiai.aaf.framework.intelligent.assistant.model
-                                                    .ToolPolicy.ActionEffect.REVERSIBLE_WRITE
-                                    || rule.reversible();
-                        })
+                            var permitted =
+                                    definition
+                                                    .toolPolicy()
+                                                    .allows(command.controlMode(), rule.effect())
+                                            && (command.controlMode()
+                                                            != ExecutionEvent.ControlMode
+                                                                    .COLLABORATIVE
+                                                    || rule.effect()
+                                                            != com.xuejiai.aaf.framework.intelligent
+                                                                    .assistant.model.ToolPolicy
+                                                                    .ActionEffect.REVERSIBLE_WRITE
+                                                    || rule.reversible());
+                            (permitted ? allowed : controlModeFiltered).add(toolName);
+                        });
+        return new AllowedToolNames(allowed, controlModeFiltered);
+    }
+
+    /**
+     * Role/Assistant 工具在当前调用下的过滤结果。
+     *
+     * @param allowed 当前 controlMode 下可用的工具
+     * @param controlModeFiltered 已配置且在调用 scope 内、仅因当前 controlMode 被过滤的工具
+     */
+    private record AllowedToolNames(Set<String> allowed, Set<String> controlModeFiltered) {
+
+        AllowedToolNames {
+            allowed = Set.copyOf(allowed);
+            controlModeFiltered =
+                    java.util.Collections.unmodifiableSortedSet(
+                            new java.util.TreeSet<>(controlModeFiltered));
+        }
+
+        /** Skill 必需工具中需升级任务才可用的部分（按名称排序）；不在授权内的工具不计入，仍由解析器 fail-closed。 */
+        java.util.SortedSet<String> requiringTask(Set<String> skillRequirements) {
+            return java.util.Collections.unmodifiableSortedSet(
+                    skillRequirements.stream()
+                            .filter(controlModeFiltered::contains)
+                            .collect(Collectors.toCollection(java.util.TreeSet::new)));
+        }
+
+        /** 从 Skill 必需工具中移除需升级任务的工具，剩余部分交给解析器校验。 */
+        Set<String> narrow(Set<String> skillRequirements) {
+            return skillRequirements.stream()
+                    .filter(toolName -> !controlModeFiltered.contains(toolName))
+                    .collect(Collectors.toUnmodifiableSet());
+        }
+    }
+
+    private static List<String> skillCodes(
+            List<com.xuejiai.aaf.framework.intelligent.agent.model.ActivatedSkill> skills) {
+        return skills.stream().map(skill -> skill.code()).sorted().toList();
+    }
+
+    /** 从交给解析器的必需工具中移除 required=false 且当前未授权的工具，使其缺失时跳过而非 fail-closed。 */
+    private static Set<String> withoutUnavailableOptional(
+            Set<String> skillRequirements, Set<String> optionalToolNames, Set<String> allowed) {
+        return skillRequirements.stream()
+                .filter(
+                        toolName ->
+                                !optionalToolNames.contains(toolName) || allowed.contains(toolName))
                 .collect(Collectors.toUnmodifiableSet());
+    }
+
+    /**
+     * 按 Skill 声明顺序生成每个已激活 Skill 的工具清单状态：对话态可升级且仅因 controlMode 收窄的可见工具为需要审批（直接调用即自动转任务）；
+     * 其余在本次画像中即可用；未授权、可选缺失、委派强制、任务态被收窄等为本次不可直接调用。
+     */
+    private static Map<String, List<PromptAssembler.SkillToolLine>> skillToolLines(
+            List<com.xuejiai.aaf.framework.intelligent.agent.model.ActivatedSkill> skills,
+            Map<Long, List<SkillToolCatalogPort.SkillToolDeclaration>> declarations,
+            List<ToolRef> effectiveTools,
+            Set<String> taskRequiredToolNames,
+            boolean direct) {
+        var visible = effectiveTools.stream().map(ToolRef::name).collect(Collectors.toSet());
+        var promotable = direct && visible.contains(PromoteDirectTaskTool.TOOL_NAME);
+        var lines = new LinkedHashMap<String, List<PromptAssembler.SkillToolLine>>();
+        for (var skill : skills) {
+            var declared = declarations.getOrDefault(skill.version().versionId(), List.of());
+            if (declared.isEmpty()) {
+                continue;
+            }
+            lines.put(
+                    skill.code(),
+                    declared.stream()
+                            .map(
+                                    declaration ->
+                                            new PromptAssembler.SkillToolLine(
+                                                    declaration.toolName(),
+                                                    promotable
+                                                                    && visible.contains(
+                                                                            declaration.toolName())
+                                                                    && taskRequiredToolNames
+                                                                            .contains(
+                                                                                    declaration
+                                                                                            .toolName())
+                                                            ? PromptAssembler.ToolAvailability
+                                                                    .REQUIRES_TASK
+                                                            : visible.contains(
+                                                                            declaration.toolName())
+                                                                    ? PromptAssembler
+                                                                            .ToolAvailability
+                                                                            .AVAILABLE
+                                                                    : PromptAssembler
+                                                                            .ToolAvailability
+                                                                            .UNAVAILABLE))
+                            .toList());
+        }
+        return lines;
+    }
+
+    /** 解析器拿不到 Skill 与 controlMode，由调用方补全后原样 fail-closed。 */
+    private static IllegalStateException skillToolResolutionFailure(
+            IllegalStateException failure,
+            List<com.xuejiai.aaf.framework.intelligent.agent.model.ActivatedSkill> skills,
+            AssistantCommand command) {
+        return new IllegalStateException(
+                "%s；skillCodes=%s，controlMode=%s"
+                        .formatted(failure.getMessage(), skillCodes(skills), command.controlMode()),
+                failure);
     }
 
     private static List<ToolRef> mergeEffectiveTools(
@@ -2953,15 +3462,20 @@ public final class AssistantApplicationService implements AssistantCommandPort {
 
     /** 本次执行冻结的 Role 事实；同一任务内前后 roleKey 不同即为角色接力，履历由事件流投影得出。 */
     private static ExecutionEvent roleResolvedEvent(
-            AssistantCommand command, long sequence, Task task, ExecutionProfileSnapshot profile) {
-        return roleResolvedEvent(command, sequence, status(task.status()), profile);
+            AssistantCommand command,
+            long sequence,
+            Task task,
+            ExecutionProfileSnapshot profile,
+            String selectedBy) {
+        return roleResolvedEvent(command, sequence, status(task.status()), profile, selectedBy);
     }
 
     private static ExecutionEvent roleResolvedEvent(
             AssistantCommand command,
             long sequence,
             ExecutionEventStatus eventStatus,
-            ExecutionProfileSnapshot profile) {
+            ExecutionProfileSnapshot profile,
+            String selectedBy) {
         var payload =
                 new ExecutionEventPayload(
                         java.util.Map.of(
@@ -2970,9 +3484,38 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                                 "routeConstraint",
                                         profile.executionIntent().routeConstraint().name(),
                                 "interactionMode",
-                                        profile.executionIntent().interactionMode().name()));
+                                        profile.executionIntent().interactionMode().name(),
+                                "selectedBy",
+                                        Objects.requireNonNullElse(
+                                                selectedBy, "EXECUTION_PROFILE_REUSED")));
         return event(
                 command, sequence, ExecutionEventType.ROLE_RESOLVED, eventStatus, null, payload);
+    }
+
+    /** 轻量态角色切换事实；理由截断并去掉换行后进入公开 payload，与公共事件展示文本约束一致。 */
+    private static ExecutionEvent roleSwitchedEvent(
+            AssistantCommand command, long sequence, DirectRoleHandoffRegistry.Handoff handoff) {
+        var values = new LinkedHashMap<String, Object>();
+        values.put("scope", Execution.Scope.DIRECT.name());
+        values.put("executionStatus", Execution.Status.SUPERSEDED.name());
+        if (handoff.fromRoleKey() != null) {
+            values.put("fromRoleKey", handoff.fromRoleKey());
+        }
+        values.put("toRoleKey", handoff.toRoleKey());
+        values.put("toRoleName", singleLine(handoff.toRoleName()));
+        values.put("reason", singleLine(handoff.reason()));
+        return event(
+                command,
+                sequence,
+                ExecutionEventType.ROLE_SWITCHED,
+                ExecutionEventStatus.COMPLETED,
+                null,
+                new ExecutionEventPayload(values));
+    }
+
+    private static String singleLine(String text) {
+        var normalized = text == null ? "" : text.replaceAll("[\\r\\n]+", " ").trim();
+        return normalized.length() <= 256 ? normalized : normalized.substring(0, 256);
     }
 
     private static ExecutionEvent commandRejectedEvent(

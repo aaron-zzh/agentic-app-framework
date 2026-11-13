@@ -26,6 +26,9 @@ public final class AafAiTaskEventRegistry {
                     case MESSAGE_DELTA -> "aaf.message.progress";
                     case MESSAGE_COMPLETED -> "aaf.message.completed";
                     case MESSAGE_BLOCK_COMPLETED -> "aaf.message.block_completed";
+                    case REASONING_STARTED -> "aaf.reasoning.started";
+                    case REASONING_DELTA -> "aaf.reasoning.progress";
+                    case REASONING_COMPLETED -> "aaf.reasoning.completed";
                     case MODEL_CALL_STARTED -> "aaf.model.started";
                     case MODEL_CALL_COMPLETED -> "aaf.model.completed";
                     case MODEL_CALL_FAILED -> "aaf.model.failed";
@@ -69,6 +72,7 @@ public final class AafAiTaskEventRegistry {
                     case TASK_STATUS_CHANGED -> "aaf.task.status_changed";
                     case CONTROL_MODE_CHANGED -> "aaf.control_mode.changed";
                     case ROLE_RESOLVED -> "aaf.role.resolved";
+                    case ROLE_SWITCHED -> "aaf.role.switched";
                     case INPUT_CANCELED -> "aaf.input.canceled";
                     case INPUT_MODIFIED -> "aaf.input.modified";
                     case INPUT_SUPPLEMENTED -> "aaf.input.supplemented";

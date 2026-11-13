@@ -32,7 +32,6 @@ import com.xuejiai.aaf.module.ai.chat.service.CustomerServiceVisitorTokenService
 import com.xuejiai.aaf.module.channel.service.WebCustomerServiceBindingResolver;
 import com.xuejiai.aaf.module.channel.service.WebCustomerServiceBindingResolver.Binding;
 
-import io.agentscope.core.agui.encoder.AguiEventEncoder;
 import io.agentscope.core.agui.event.AguiEvent;
 import tools.jackson.databind.JsonNode;
 
@@ -41,8 +40,6 @@ import tools.jackson.databind.JsonNode;
 @RequestMapping("/api/public/customer-service")
 @PreAuthorize("isAnonymous()")
 public class PublicCustomerServiceController {
-
-    private static final AguiEventEncoder ENCODER = new AguiEventEncoder();
 
     private final CustomerServiceVisitorTokenService visitorTokens;
     private final WebCustomerServiceBindingResolver bindings;
@@ -235,7 +232,7 @@ public class PublicCustomerServiceController {
                 emitter.send(
                         SseEmitter.event()
                                 .id(cursor + "." + index)
-                                .data(ENCODER.encodeToJson(events.get(index))));
+                                .data(AafAguiEncoder.encodeToJson(events.get(index))));
             }
         } catch (IOException failure) {
             emitter.complete();

@@ -1,7 +1,7 @@
 /**
- * 对话积分条：固定在输入框上方，展示本轮消耗与当前对话累计积分。
+ * 对话积分：显示在对话流最后一条回复的操作栏旁，展示本轮消耗与当前对话累计积分。
  *
- * 不随消息滚动；生成中不请求，本轮结束后刷新。
+ * 生成中不请求，本轮结束后刷新。
  *
  * @author AaronZZH & Kiro
  */
@@ -25,10 +25,10 @@ export function ConversationCreditBar() {
   if (!creditSummary) return null
 
   return (
-    <div className="flex shrink-0 justify-center gap-1.5 px-3 pb-1 text-[11px] text-muted-foreground/70">
-      <span>本轮消耗 {creditSummary.turnCredits.toLocaleString()} 积分</span>
-      <span aria-hidden="true">·</span>
-      <span>当前对话累计 {creditSummary.conversationCredits.toLocaleString()} 积分</span>
+    <div className="flex shrink-0 gap-1.5 text-[11px] text-muted-foreground/70">
+      <span>本轮 {creditSummary.turnCredits.toLocaleString()}</span>
+      <span aria-hidden="true">/</span>
+      <span>{creditSummary.conversationCredits.toLocaleString()} 积分</span>
     </div>
   )
 }

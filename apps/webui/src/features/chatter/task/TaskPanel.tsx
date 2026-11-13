@@ -18,6 +18,7 @@ import {
   ListChecks,
   ListTree,
   LoaderCircle,
+  Maximize2,
   PauseCircle,
   ShieldAlert
 } from "lucide-react"
@@ -27,11 +28,13 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
-import { Progress, ProgressLabel, ProgressValue } from "@/components/ui/progress"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Progress } from "@/components/ui/progress"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import type { TaskListProgress } from "@/features/chatter/hooks/use-task-list"
+import { TaskApprovalCard } from "@/features/chatter/task/TaskApprovalCard"
 import { TaskPlanGraph } from "@/features/chatter/task/TaskPlanGraph"
 import {
   isTaskTerminal,
@@ -164,7 +167,8 @@ function ExecutionRow({ execution }: { execution: TaskExecutionDetails }) {
   )
 }
 
-function TaskItem({ task }: { task: TaskDetails }) {
+/** showApprovals：仅任务弹窗内为 true，审批卡只在弹窗中出现 */
+function TaskItem({ task, showApprovals = false }: { task: TaskDetails; showApprovals?: boolean }) {
   const details = useBoolean(false)
   const confirm = useBoolean(false)
   const pauseConfirm = useBoolean(false)
@@ -232,6 +236,12 @@ function TaskItem({ task }: { task: TaskDetails }) {
             />
           </CollapsibleTrigger>
         </div>
+        {/* 待授权操作只在任务弹窗中展示（仅弹窗打开且仍未审批时可见），面板内联列表不重复出现 */}
+        {showApprovals && (
+          <div className="pl-6">
+            <TaskApprovalCard task={task} />
+          </div>
+        )}
 
         <CollapsibleContent className="flex flex-col gap-2 pt-2 pl-6">
           <p className="text-muted-foreground text-xs">
@@ -390,6 +400,10 @@ interface TaskPanelProps {
 }
 
 export function TaskPanel({ tasks, progress, isLoading }: TaskPanelProps) {
+  // 默认折叠，只占一行进度；展开后列表最高 18rem，避免挤占对话区
+  const expanded = useBoolean(false)
+  // 对话区较窄时可弹窗查看完整任务看板
+  const dialogOpen = useBoolean(false)
   if (isLoading || tasks.length === 0) return null
   const completed = progress.byStatus.COMPLETED
   const percent = progress.total > 0 ? Math.round((completed / progress.total) * 100) : 0
@@ -397,29 +411,83 @@ export function TaskPanel({ tasks, progress, isLoading }: TaskPanelProps) {
     TaskStatus,
     number
   ][]
+  // 等待授权的任务在面板上给出弹窗入口，审批卡只在弹窗中出现
+  const awaitingTasks = tasks.filter((task) => task.status === "AWAITING_AUTHORIZATION")
 
   return (
     <div className="border-border/50 border-t bg-muted/30 px-3 py-2">
-      <Progress value={percent} className="mb-2">
-        <ProgressLabel className="text-xs">
-          持久任务 {completed}/{progress.total} 完成
-        </ProgressLabel>
-        <ProgressValue className="text-xs" />
-      </Progress>
-      <div className="mb-1 flex flex-wrap gap-1">
-        {groups.map(([status, count]) => (
-          <Badge key={status} variant="secondary">
-            {STATUS_LABEL[status]} {count}
-          </Badge>
-        ))}
-      </div>
-      <ScrollArea className="h-72">
-        <div className="pr-2">
-          {tasks.map((task) => (
-            <TaskItem key={task.taskId} task={task} />
-          ))}
+      <Collapsible open={expanded.value} onOpenChange={expanded.setValue}>
+        {/* 文字、百分比与折叠按钮同处一行居中对齐，进度条单独占下一行 */}
+        <div className="flex items-center gap-2">
+          <span className="min-w-0 flex-1 truncate font-medium text-xs">
+            持久任务 {completed}/{progress.total} 完成
+          </span>
+          <span className="shrink-0 text-muted-foreground text-xs tabular-nums">{percent}%</span>
+          <CollapsibleTrigger
+            className="flex shrink-0 items-center gap-1 rounded-md p-1 text-muted-foreground text-xs hover:bg-muted hover:text-foreground"
+            aria-label={expanded.value ? "收起任务列表" : "展开任务列表"}
+          >
+            {groups.map(([status, count]) => (
+              <Badge key={status} variant="secondary">
+                {STATUS_LABEL[status]} {count}
+              </Badge>
+            ))}
+            <ChevronDown
+              className={cn("size-4 transition-transform", expanded.value && "rotate-180")}
+            />
+          </CollapsibleTrigger>
+          {/* 等待授权只给小图标提醒：对话流中已有审批提示，点击在弹窗中查看详情并处理 */}
+          {awaitingTasks.length > 0 && (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="shrink-0 text-amber-600"
+              aria-label={`${awaitingTasks.length} 个任务等待授权，弹窗查看`}
+              title={`${awaitingTasks.length} 个任务等待授权`}
+              onClick={dialogOpen.onTrue}
+            >
+              <ShieldAlert className="size-3.5" />
+            </Button>
+          )}
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="shrink-0 text-muted-foreground"
+            aria-label="弹窗查看任务看板"
+            title="弹窗查看"
+            onClick={dialogOpen.onTrue}
+          >
+            <Maximize2 className="size-3.5" />
+          </Button>
         </div>
-      </ScrollArea>
+        <Progress value={percent} aria-label="持久任务完成进度" className="mt-1" />
+        <CollapsibleContent>
+          {/* base-ui Viewport 为 size-full，max-h 必须落在 Viewport 上才会出现滚动条 */}
+          <ScrollArea className="mt-1 [&>[data-slot=scroll-area-viewport]]:max-h-72">
+            <div className="pr-2">
+              {tasks.map((task) => (
+                <TaskItem key={task.taskId} task={task} />
+              ))}
+            </div>
+          </ScrollArea>
+        </CollapsibleContent>
+      </Collapsible>
+      <Dialog open={dialogOpen.value} onOpenChange={dialogOpen.setValue}>
+        <DialogContent className="flex max-h-[85vh] flex-col sm:max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>
+              持久任务 {completed}/{progress.total} 完成（{percent}%）
+            </DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="min-h-0 flex-1 [&>[data-slot=scroll-area-viewport]]:max-h-[calc(85vh-5rem)]">
+            <div className="pr-3">
+              {tasks.map((task) => (
+                <TaskItem key={task.taskId} task={task} showApprovals />
+              ))}
+            </div>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

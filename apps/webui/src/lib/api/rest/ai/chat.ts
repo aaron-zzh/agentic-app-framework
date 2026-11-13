@@ -22,17 +22,20 @@ export interface ChatSession {
   /** 会话当前角色（下一轮起步角色），未记录时为空 */
   agentRole?: string | null
   agentId?: string
-  createdAt: string
-  updatedAt: string
+  /** 后端 LocalDateTime */
+  createTime: string
+  /** 后端 LocalDateTime */
+  updateTime: string
 }
 
-/** 聊天消息（后端 ChatMessageVO） */
+/** 聊天消息（后端 ChatMessageVO；匿名客服历史 PublicMessage 字段一致） */
 export interface ChatMessageVO {
   id: string
   sessionId: string
   role: "user" | "assistant" | "system"
   content: string
-  createdAt: string
+  /** 后端 LocalDateTime，如 2026-11-12T10:07:55 */
+  createTime: string
 }
 
 export interface ConversationCreditSummary {

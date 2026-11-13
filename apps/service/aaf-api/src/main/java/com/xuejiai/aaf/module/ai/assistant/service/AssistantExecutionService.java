@@ -46,6 +46,7 @@ import com.xuejiai.aaf.framework.intelligent.cognition.model.MemoryRecord.Memory
 import com.xuejiai.aaf.framework.intelligent.cognition.model.MemoryRecord.SubjectKind;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ControlMode;
+import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventStorePort;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventType;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionLiveEventPort;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.*;
@@ -99,6 +100,7 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
     private final VisionMediaResolver visionMediaResolver;
     private final com.xuejiai.aaf.module.billing.api.ParallelTaskQuotaApi parallelTaskQuota;
     private final ExecutionLiveEventPort liveEvents;
+    private final ExecutionEventStorePort eventStore;
 
     /** 只计算确定性 canonical Task 身份，供业务先持久化受控作用域。 */
     @Override
@@ -157,6 +159,10 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
                 resolveAssistant(
                         new AssistantExecutionRequest.AssistantTarget(request.assistantId()),
                         identity);
+        // 程序化入口继续要求同时给出 Role 与 Skill（ADR-011 只放开交互式 TASK 的自动路由）
+        if (normalize(objective.roleKey()) == null || normalize(objective.skillKey()) == null) {
+            throw exception(EXECUTION_TASK_ROUTE_INCOMPLETE);
+        }
         var executionIntent =
                 executionIntent(
                         programmaticExecutionRequest(request),
@@ -542,7 +548,8 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
                 Flux.defer(
                                 () -> {
                                     if (analysis.route() == TaskAnalysis.Route.DIRECT) {
-                                        return assistantCommands.execute(command);
+                                        return followPromotion(
+                                                assistantCommands.execute(command), command);
                                     }
                                     final TaskPlan board;
                                     if (resolvedTeam != null) {
@@ -584,10 +591,11 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
                         .doOnNext(
                                 event -> {
                                     if (event.type() != ExecutionEventType.MESSAGE_DELTA
+                                            && event.type() != ExecutionEventType.REASONING_DELTA
                                             && event.type()
                                                     != ExecutionEventType.TOOL_CALL_ARGS_DELTA) {
                                         log.debug(
-                                                "[AssistantExecution] stage=event_received executionId={} taskId={} "
+                                                "[执行事件·入口转发] stage=event_received executionId={} taskId={} "
                                                         + "sequence={} eventType={} status={}",
                                                 executionKey,
                                                 taskKey,
@@ -617,6 +625,73 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
                         ? outputContractProjection(events, outputContract)
                         : events;
         return validatedEvents;
+    }
+
+    /**
+     * 轻量态升级后同一条 SSE 继续跟随任务事件（ADR-011）：观察到 {@code EXECUTION_PROMOTED} 后先登记任务实时订阅， 再从事件库回补已落库事件，按事件
+     * ID 去重后接实时事件，直到交付节点完成或进入等待点。
+     */
+    private Flux<ExecutionEvent> followPromotion(
+            Flux<ExecutionEvent> direct, AssistantCommand command) {
+        var promotedTaskId = new AtomicReference<TaskId>();
+        var promotedEventId = new AtomicReference<String>();
+        return direct.doOnNext(
+                        event -> {
+                            if (event.type() == ExecutionEventType.EXECUTION_PROMOTED
+                                    && event.payload().values().get("promotedTaskId")
+                                            instanceof String taskId
+                                    && !taskId.isBlank()) {
+                                promotedTaskId.compareAndSet(null, new TaskId(taskId));
+                                promotedEventId.compareAndSet(null, event.eventId().value());
+                            }
+                        })
+                .concatWith(
+                        Flux.defer(
+                                        () -> {
+                                            var taskId = promotedTaskId.get();
+                                            return taskId == null
+                                                    ? Flux.<ExecutionEvent>empty()
+                                                    : followTaskEvents(
+                                                            command, taskId, promotedEventId.get());
+                                        })
+                                .subscribeOn(Schedulers.boundedElastic()));
+    }
+
+    private Flux<ExecutionEvent> followTaskEvents(
+            AssistantCommand command, TaskId taskId, String emittedEventId) {
+        // 先登记实时订阅再读事件库，回补与实时之间不留空窗；重叠部分按事件 ID 去重
+        var live = liveEvents.open(command.tenantId(), taskId);
+        final List<ExecutionEvent> backfill;
+        try {
+            backfill =
+                    eventStore
+                            .readTask(command.tenantId(), taskId, 0)
+                            .map(ExecutionEventStorePort.StoredExecutionEvent::event)
+                            .collectList()
+                            .block();
+        } catch (RuntimeException failure) {
+            live.subscribe().dispose();
+            throw failure;
+        }
+        var seen = java.util.concurrent.ConcurrentHashMap.<String>newKeySet();
+        if (emittedEventId != null) {
+            seen.add(emittedEventId);
+        }
+        var replay =
+                Objects.requireNonNullElse(backfill, List.<ExecutionEvent>of()).stream()
+                        .filter(event -> seen.add(event.eventId().value()))
+                        .toList();
+        log.info(
+                "[任务续流] 开始跟随任务事件：runId={}，taskId={}，回补事件数={}",
+                command.runId().value(),
+                taskId.value(),
+                replay.size());
+        var tracker = new RunDeliveryTracker();
+        return Flux.fromIterable(replay)
+                .concatWith(live.filter(event -> seen.add(event.eventId().value())))
+                .takeUntil(tracker::endsStream)
+                .timeout(TASK_EVENT_STREAM_TIMEOUT)
+                .doFinally(signal -> log.info("[任务续流] 结束：taskId={}，原因={}", taskId.value(), signal));
     }
 
     private static Flux<ExecutionEvent> outputContractProjection(
@@ -924,10 +999,9 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
     }
 
     /**
-     * 仅凭显式 Skill 唯一定位 Role（AAF-107 #10708）：与 {@code DefaultRoleSelector.selectByExplicitSkill}
-     * 同一匹配规则——只在当前 Assistant 已发布 Role 范围内查找， SYSTEM/Assistant 层 ON_DEMAND Skill（不挂在任何 Role
-     * 下）视为技能无法定位角色，直接 fail closed。 命中多个非默认 Role 时，若默认 Role 恰好也持有该 Skill 则采用默认 Role 兜底，否则 fail
-     * closed 不猜测。
+     * 仅凭显式 Skill 唯一定位 Role（AAF-107 #10708）：显式 Skill 反推 Role 的唯一实现（L0 角色选择已按 ADR-011 删除）—— 只在当前
+     * Assistant 已发布 Role 范围内查找， SYSTEM/Assistant 层 ON_DEMAND Skill（不挂在任何 Role 下）视为技能无法定位角色，直接 fail
+     * closed。 命中多个非默认 Role 时，若默认 Role 恰好也持有该 Skill 则采用默认 Role 兜底，否则 fail closed 不猜测。
      */
     private static com.xuejiai.aaf.framework.intelligent.assistant.model.Role roleByExplicitSkill(
             AssistantDefinition definition, String skillKey, Set<String> systemOnDemandSkillKeys) {
@@ -1003,7 +1077,7 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
             }
             // role/skill 各自独立锁定（AAF-107 #10708）：只锁角色时技能仍开放选择（route.skillKey()==null，
             // 消费方 AssistantApplicationService 据此保持技能候选集不收窄）；只锁技能时按技能唯一定位角色
-            // （与 DefaultRoleSelector.selectByExplicitSkill 同一匹配规则：唯一命中直接采用，命中多个非默认
+            // （roleByExplicitSkill：唯一命中直接采用，命中多个非默认
             // Role 时 fail closed，不猜测）；两者都给时行为不变。
             final com.xuejiai.aaf.framework.intelligent.assistant.model.Role role;
             if (roleKey != null) {
@@ -1034,21 +1108,26 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
                     decomposition,
                     options.aggregationRequirementsMaxChars());
         }
-        // TASK 恒为 ROUTE_FIXED，必须同时声明 Role 与 Skill
+        // TASK 与对话同一路由规则（ADR-011）：都未声明为 ROUTE_AUTO，协调者节点使用助理默认角色；只给 Role 时技能开放；
+        // 只给 Skill 时按技能唯一定位角色；都给时校验技能属于角色候选。程序化入口仍要求同时给出 Role 与 Skill
         var roleKey = request.role() == null ? null : normalize(request.role().key());
         var skillKey = request.skill() == null ? null : normalize(request.skill().code());
-        if (roleKey == null || skillKey == null) {
-            throw exception(EXECUTION_TASK_ROUTE_INCOMPLETE);
-        }
         final com.xuejiai.aaf.framework.intelligent.assistant.model.Role role;
-        try {
-            role = definition.requireRole(roleKey);
-        } catch (IllegalArgumentException exception) {
-            throw exception(EXECUTION_ROUTE_ROLE_NOT_FOUND);
-        }
-        if (!candidateOnDemandSkillKeys(definition, role, systemOnDemandSkillKeys)
-                .contains(skillKey)) {
-            throw exception(EXECUTION_ROUTE_SKILL_NOT_AVAILABLE);
+        if (roleKey != null) {
+            try {
+                role = definition.requireRole(roleKey);
+            } catch (IllegalArgumentException exception) {
+                throw exception(EXECUTION_ROUTE_ROLE_NOT_FOUND);
+            }
+            if (skillKey != null
+                    && !candidateOnDemandSkillKeys(definition, role, systemOnDemandSkillKeys)
+                            .contains(skillKey)) {
+                throw exception(EXECUTION_ROUTE_SKILL_NOT_AVAILABLE);
+            }
+        } else if (skillKey != null) {
+            role = roleByExplicitSkill(definition, skillKey, systemOnDemandSkillKeys);
+        } else {
+            role = null;
         }
         var artifactPolicy =
                 options.artifactPersistence()
@@ -1061,9 +1140,14 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
                                 artifactTarget);
         return new ExecutionIntent(
                 interactionMode,
-                ExecutionIntent.RouteConstraint.ROUTE_FIXED,
+                role == null
+                        ? ExecutionIntent.RouteConstraint.ROUTE_AUTO
+                        : ExecutionIntent.RouteConstraint.ROUTE_FIXED,
                 clarificationPolicy,
-                new ExecutionIntent.ResolvedRoute(roleKey, skillKey, definition.version().value()),
+                role == null
+                        ? null
+                        : new ExecutionIntent.ResolvedRoute(
+                                role.key(), skillKey, definition.version().value()),
                 artifactPolicy,
                 new ExecutionIntent.ActionAuthorizationPolicy(
                         actionAuthorizationMode,

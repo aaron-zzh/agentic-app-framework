@@ -13,6 +13,11 @@
 
 import { type ReactNode, useCallback, useRef, useState } from "react"
 
+const DEFAULT_HEIGHT = 560
+const MIN_HEIGHT = 300
+/** 弹窗顶部与视口顶部的最小留白 */
+const TOP_GAP = 16
+
 interface GlobalChatterDialogProps {
   open: boolean
   /** 弹窗右下角对齐的视口边距（来自浮动按钮位置 + 间距） */
@@ -21,7 +26,19 @@ interface GlobalChatterDialogProps {
 }
 
 export function GlobalChatterDialog({ open, anchor, children }: GlobalChatterDialogProps) {
-  const [size, setSize] = useState({ w: 380, h: 560 })
+  // 默认高度取视口 70%，并扣除底部锚点与顶部留白，避免超出视口；SSR 阶段回退固定值
+  const [size, setSize] = useState(() => ({
+    w: 380,
+    h:
+      typeof window === "undefined"
+        ? DEFAULT_HEIGHT
+        : Math.max(
+            MIN_HEIGHT,
+            Math.round(
+              Math.min(window.innerHeight * 0.7, window.innerHeight - anchor.bottom - TOP_GAP)
+            )
+          )
+  }))
   const resizeStart = useRef<{ mx: number; my: number; w: number; h: number } | null>(null)
 
   const handleResizeDown = useCallback(
@@ -36,7 +53,7 @@ export function GlobalChatterDialog({ open, anchor, children }: GlobalChatterDia
     if (!resizeStart.current) return
     setSize({
       w: Math.max(280, resizeStart.current.w + e.clientX - resizeStart.current.mx),
-      h: Math.max(300, resizeStart.current.h + e.clientY - resizeStart.current.my)
+      h: Math.max(MIN_HEIGHT, resizeStart.current.h + e.clientY - resizeStart.current.my)
     })
   }, [])
   const handleResizeUp = useCallback(() => {

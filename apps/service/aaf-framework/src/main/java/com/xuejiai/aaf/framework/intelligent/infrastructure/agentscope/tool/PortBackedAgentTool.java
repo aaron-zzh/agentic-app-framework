@@ -6,6 +6,7 @@ import com.xuejiai.aaf.framework.intelligent.agent.model.InvocationContext;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolCatalogPort.ToolDefinition;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolGatewayPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolGatewayPort.ApprovalRequiredException;
+import com.xuejiai.aaf.framework.intelligent.agent.port.ToolGatewayPort.PromotionHandoffException;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolInvocationPort.ToolInvocation;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ClarificationRequiredException;
 
@@ -23,6 +24,8 @@ import reactor.core.publisher.Mono;
  * TOOL_RESULT_END 时取回。
  */
 final class PortBackedAgentTool extends ToolBase {
+
+    private static final String CONTROL_HANDOFF = ToolGatewayPort.CONTROL_HANDOFF_KEY;
 
     private final ToolDefinition definition;
     private final ToolGatewayPort gateway;
@@ -69,9 +72,29 @@ final class PortBackedAgentTool extends ToolBase {
                             if (Boolean.TRUE.equals(result.metadata().get("handoff"))) {
                                 throw new ToolSuspendException("任务已移交人工支持");
                             }
+                            // 控制交接工具（promote_to_task / activate_role）成功：挂起循环，不再发起下一次模型调用
+                            if (Boolean.TRUE.equals(result.metadata().get(CONTROL_HANDOFF))) {
+                                throw new ToolSuspendException("控制交接已完成，本轮结束");
+                            }
                             return ToolResultBlock.of(
                                     TextBlock.builder().text(result.output()).build(),
                                     result.metadata());
+                        })
+                // 网关已携带该调用自动升级为 Task：记控制交接证据后挂起，本轮循环交出控制权
+                .onErrorMap(
+                        PromotionHandoffException.class,
+                        failure -> {
+                            evidenceStore.record(
+                                    context.executionId(),
+                                    toolUse.getId(),
+                                    Map.of(
+                                            CONTROL_HANDOFF,
+                                            true,
+                                            "promotedTaskId",
+                                            failure.promotedTaskId()),
+                                    definition.reversible(),
+                                    false);
+                            return new ToolSuspendException(failure.getMessage());
                         })
                 // 需人工授权：转 ToolSuspendException 让 Agent 挂起而非报错终止
                 .onErrorMap(

@@ -89,7 +89,8 @@ public record AafAiTaskEvent(
     public record ReferenceSafeData(Map<String, Object> values) {
         private static final int MAX_TEXT_LENGTH = 256;
         private static final int MAX_FEEDBACK_CODE_POINTS = 1000;
-        private static final Set<String> DISPLAY_TEXT_KEYS = Set.of("roleName");
+        private static final Set<String> DISPLAY_TEXT_KEYS =
+                Set.of("roleName", "toRoleName", "reason");
         private static final Set<String> USER_TEXT_KEYS = Set.of("feedback");
         private static final Set<String> LIVE_PREVIEW_TEXT_KEYS = Set.of("contentDelta");
         private static final Set<String> ALLOWED_KEYS =
@@ -135,6 +136,14 @@ public record AafAiTaskEvent(
                         "roleName",
                         "routeConstraint",
                         "interactionMode",
+                        "selectedBy",
+                        "shape",
+                        "trigger",
+                        "pendingToolName",
+                        "fromRoleKey",
+                        "toRoleKey",
+                        "toRoleName",
+                        "reason",
                         "errorCode");
 
         public ReferenceSafeData {

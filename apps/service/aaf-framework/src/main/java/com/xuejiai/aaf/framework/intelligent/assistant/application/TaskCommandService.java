@@ -13,10 +13,12 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import com.xuejiai.aaf.framework.intelligent.agent.model.AuthorizationGrant;
 import com.xuejiai.aaf.framework.intelligent.agent.model.InvocationContext;
+import com.xuejiai.aaf.framework.intelligent.agent.model.PendingToolCall;
 import com.xuejiai.aaf.framework.intelligent.agent.port.AgentExecutionPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.AuthorizationGrantPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ArtifactCompletionContract.ArtifactCompletionEvaluator;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ArtifactCompletionContract.InvocationReceipt;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantDefinition;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionInput;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionIntent;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.Task;
@@ -26,7 +28,9 @@ import com.xuejiai.aaf.framework.intelligent.assistant.model.Task.Source;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskCheckpoint;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskPlan;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantCommandPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantDefinitionPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.DirectPromotionPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ExecutionProfileSnapshotPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.HitlTransitionPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskDispatchSignalPort;
@@ -36,6 +40,7 @@ import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskMaterializationP
 import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskMaterializationPort.NodeResultCommand;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskUnitOfWork;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent;
+import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ExecutionEventStatus;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventType;
 import com.xuejiai.aaf.framework.intelligent.shared.event.NodeIdentity;
 import com.xuejiai.aaf.framework.intelligent.shared.event.TurnEndReason;
@@ -51,7 +56,7 @@ import reactor.core.publisher.Mono;
 
 /** canonical TaskPlan 命令入口；每次 worker 只领取并执行一个 TaskNode dispatch。 */
 @Slf4j
-public final class TaskCommandService {
+public final class TaskCommandService implements DirectPromotionPort {
     public static final String TASK_NODE_DISPATCH_TYPE = "task-node-dispatch";
 
     private static final String CONTENT_DRAFT_UPSERT_ACTION = "content.draft.upsert";
@@ -69,6 +74,7 @@ public final class TaskCommandService {
     private final AgentExecutionPort agentExecutions;
     private final TaskDispatchSignalPort dispatchSignals;
     private final ArtifactCompletionEvaluator artifactCompletionEvaluator;
+    private final AssistantDefinitionPort definitions;
     private final Clock clock;
     private final Duration dispatchLeaseTtl;
     private final Duration pauseAckTimeout;
@@ -85,6 +91,7 @@ public final class TaskCommandService {
             AgentExecutionPort agentExecutions,
             TaskDispatchSignalPort dispatchSignals,
             ArtifactCompletionEvaluator artifactCompletionEvaluator,
+            AssistantDefinitionPort definitions,
             Clock clock,
             Duration dispatchLeaseTtl,
             Duration pauseAckTimeout) {
@@ -104,6 +111,7 @@ public final class TaskCommandService {
         this.artifactCompletionEvaluator =
                 Objects.requireNonNull(
                         artifactCompletionEvaluator, "artifactCompletionEvaluator 不能为空");
+        this.definitions = Objects.requireNonNull(definitions, "definitions 不能为空");
         this.clock = Objects.requireNonNull(clock, "clock 不能为空");
         this.dispatchLeaseTtl = Objects.requireNonNull(dispatchLeaseTtl, "dispatchLeaseTtl 不能为空");
         this.pauseAckTimeout = Objects.requireNonNull(pauseAckTimeout, "pauseAckTimeout 不能为空");
@@ -115,12 +123,25 @@ public final class TaskCommandService {
         }
     }
 
-    public Task promoteDirect(TenantId tenantId, ExecutionId originExecutionId, String reason) {
+    public Task promoteDirect(
+            TenantId tenantId,
+            ExecutionId originExecutionId,
+            String reason,
+            String roleKey,
+            String shape,
+            AssistantDefinition definition,
+            PendingToolCall pendingCall) {
         Objects.requireNonNull(tenantId, "tenantId 不能为空");
         Objects.requireNonNull(originExecutionId, "originExecutionId 不能为空");
+        Objects.requireNonNull(definition, "definition 不能为空");
+        if (pendingCall != null && !pendingCall.originExecutionId().equals(originExecutionId)) {
+            throw new IllegalArgumentException("待执行调用必须来自 origin DIRECT Execution");
+        }
         if (reason == null || reason.isBlank()) {
             throw new IllegalArgumentException("promotion reason 不能为空白");
         }
+        var requestedRoleKey = roleKey == null || roleKey.isBlank() ? null : roleKey.trim();
+        var requestedShape = shape == null || shape.isBlank() ? null : shape.trim();
         var origin =
                 tasks.findExecution(tenantId, originExecutionId)
                         .orElseThrow(
@@ -149,18 +170,47 @@ public final class TaskCommandService {
         }
         var at = clock.instant();
         var taskId = promotionTaskId(tenantId, originExecutionId);
-        var promotedCommand = sourceCommand.promoteToTask(taskId, at);
-        var maxAttempts = promotedCommand.executionContract().retryPolicy().maxAttempts();
-        // 升级后协调者节点继承轻量态已固定的 Skill；AUTO 路由没有固定 Skill，保持为空
+        // 升级后协调者节点继承轻量态已固定的 Skill；AUTO 路由没有固定 Skill，保持为空。
+        // 升级时指定角色（ADR-011）则协调者节点改用该角色，换角色后不再继承原 Skill
         var originRoute = profile.executionIntent().resolvedRoute();
+        var originRoleKey = profile.roleAssignment().roleKey();
+        var coordinatorRoleKey = requestedRoleKey == null ? originRoleKey : requestedRoleKey;
+        // 委托态执行契约按动作校验工具调用：追加协调者角色可用工具，否则写工具在 ToolGateway 被契约拒绝
+        var delegatedContract =
+                sourceCommand
+                        .executionContract()
+                        .withAdditionalActions(
+                                definition.candidateToolKeys(
+                                        definition.requireRole(coordinatorRoleKey)));
+        var promotedCommand = sourceCommand.promoteToTask(taskId, delegatedContract, at);
+        var maxAttempts = promotedCommand.executionContract().retryPolicy().maxAttempts();
+        var coordinatorSkillKey =
+                originRoute == null || !coordinatorRoleKey.equals(originRoleKey)
+                        ? null
+                        : originRoute.skillKey();
+        var description =
+                "[升级说明] 形态=%s；理由=%s\n%s"
+                        .formatted(
+                                requestedShape == null ? "未指定" : requestedShape,
+                                reason.trim().replaceAll("[\\r\\n]+", " "),
+                                sourceCommand.input());
         var plan =
                 TaskPlan.coordinated(
                         taskId,
-                        sourceCommand.input(),
-                        profile.roleAssignment().roleKey(),
-                        originRoute == null ? null : originRoute.skillKey(),
+                        description,
+                        coordinatorRoleKey,
+                        coordinatorSkillKey,
                         sourceCommand.taskModelSelection(),
                         maxAttempts);
+        var checkpoint = TaskCheckpoint.empty().withAnnotation("promotionReason", reason.trim());
+        if (requestedShape != null) {
+            checkpoint = checkpoint.withAnnotation("promotionShape", requestedShape);
+        }
+        if (pendingCall != null) {
+            checkpoint =
+                    checkpoint.withAnnotation(
+                            PendingToolCall.ANNOTATION_KEY, pendingCall.toAnnotation());
+        }
         var owner = new Owner(OwnerKind.ASSISTANT, sourceCommand.assistantId().value());
         var task =
                 new Task(
@@ -186,13 +236,53 @@ public final class TaskCommandService {
                         null,
                         0,
                         null,
-                        TaskCheckpoint.empty().withAnnotation("promotionReason", reason.trim()),
+                        checkpoint,
                         null,
                         at,
                         at);
         var dispatches = materializations.promoteDirect(origin, task, plan, promotedCommand, at);
         dispatches.forEach(this::signal);
+        log.info(
+                "[任务升级] DIRECT 已提升：originExecutionId={}，taskId={}，roleKey={}，shape={}，reason={}",
+                originExecutionId.value(),
+                taskId.value(),
+                coordinatorRoleKey,
+                requestedShape,
+                reason.trim());
         return tasks.findTask(task.tenantId(), task.taskId()).orElseThrow();
+    }
+
+    /** 网关在轻量态触及授权工具时调用：沿用当前角色与 Skill，携带待执行调用提升为 Task。 */
+    @Override
+    public PromotionHandoff promoteForPendingCall(InvocationContext context, PendingToolCall call) {
+        Objects.requireNonNull(context, "context 不能为空");
+        Objects.requireNonNull(call, "call 不能为空");
+        if (context.taskId() != null || context.nodeIdentity() != null) {
+            throw new IllegalStateException("自动升级仅允许 DIRECT execution 触发");
+        }
+        if (!call.originExecutionId().equals(context.executionId())) {
+            throw new IllegalArgumentException("待执行调用必须来自当前 DIRECT Execution");
+        }
+        var definition =
+                definitions
+                        .findById(context.tenantId(), context.assistantId())
+                        .orElseThrow(() -> new IllegalStateException("无法读取当前助理定义"));
+        var task =
+                promoteDirect(
+                        context.tenantId(),
+                        context.executionId(),
+                        "工具 %s 需要用户授权，系统自动转为任务".formatted(call.toolName()),
+                        null,
+                        null,
+                        definition,
+                        call);
+        log.info(
+                "[任务升级] 网关自动升级：originExecutionId={}，taskId={}，tool={}，toolCallId={}",
+                context.executionId().value(),
+                task.taskId().value(),
+                call.toolName(),
+                call.toolCallId());
+        return new PromotionHandoff(task.taskId(), task.status());
     }
 
     static TaskId promotionTaskId(TenantId tenantId, ExecutionId originExecutionId) {
@@ -595,6 +685,8 @@ public final class TaskCommandService {
         var retryableFailure = new AtomicBoolean();
         var completed = new AtomicBoolean();
         var delegated = new AtomicBoolean();
+        // 本节点授权/澄清等待已由 HITL 事务原子提交并关闭 Dispatch，结果不再提交
+        var awaitingHuman = new AtomicBoolean();
         var draftToolCallId = new AtomicReference<String>();
         var documentId = new AtomicReference<String>();
         var documentVersionId = new AtomicReference<String>();
@@ -644,6 +736,19 @@ public final class TaskCommandService {
                             if (event.type() == ExecutionEventType.EXECUTION_COMPLETED) {
                                 completed.set(true);
                             }
+                            if (command.executionId().equals(event.executionId())
+                                    && ((event.type() == ExecutionEventType.AUTHORIZATION_REQUESTED
+                                                    && event.status()
+                                                            == ExecutionEventStatus
+                                                                    .AWAITING_AUTHORIZATION)
+                                            || (event.type()
+                                                            == ExecutionEventType
+                                                                    .CLARIFICATION_REQUESTED
+                                                    && event.status()
+                                                            == ExecutionEventStatus
+                                                                    .AWAITING_CLARIFICATION))) {
+                                awaitingHuman.set(true);
+                            }
                             if (event.type() == ExecutionEventType.EXECUTION_FAILED
                                     || event.type() == ExecutionEventType.COMMAND_REJECTED) {
                                 failure.compareAndSet(
@@ -664,6 +769,15 @@ public final class TaskCommandService {
                         Flux.defer(
                                 () -> {
                                     var terminalFailure = failure.get();
+                                    if (awaitingHuman.get() && terminalFailure == null) {
+                                        log.info(
+                                                "[TaskMaterialization] stage=task_node_commit executionId={} "
+                                                        + "taskId={} nodeId={} outcome=AWAITING_HUMAN",
+                                                command.executionId().value(),
+                                                command.taskId().value(),
+                                                claimed.node().nodeId());
+                                        return Flux.empty();
+                                    }
                                     if (terminalFailure == null
                                             && delegationRequired
                                             && !delegated.get()) {

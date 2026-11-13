@@ -70,6 +70,28 @@ public class JpaTaskQueryAdapter implements TaskQueryPort {
 
     @Override
     @Transactional(readOnly = true)
+    public List<TaskDetails> listActive(TenantId tenantId, UserId userId, int limit) {
+        if (limit < 1) {
+            return List.of();
+        }
+        var terminalStatuses =
+                Arrays.stream(Task.Status.values())
+                        .filter(Task.Status::terminal)
+                        .map(Enum::name)
+                        .toList();
+        return tasks
+                .findActiveByUser(
+                        tenantId.value(),
+                        userId.value(),
+                        terminalStatuses,
+                        org.springframework.data.domain.PageRequest.of(0, limit))
+                .stream()
+                .map(entity -> details(tenantId, entity))
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public long countActiveBySource(TenantId tenantId, UserId userId, Task.Source source) {
         var releasedStatuses =
                 Arrays.stream(Task.Status.values())
@@ -155,7 +177,8 @@ public class JpaTaskQueryAdapter implements TaskQueryPort {
                                                 node.failure(),
                                                 executorPlanDetails(
                                                         tenantId,
-                                                        latestExecutorPlans.get(node.nodeId()))))
+                                                        latestExecutorPlans.get(node.nodeId())),
+                                                node.roleKey()))
                         .toList();
         return new PlanDetails(
                 plan.planId(),

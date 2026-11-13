@@ -14,6 +14,7 @@ import java.util.UUID;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.xuejiai.aaf.framework.intelligent.agent.model.PendingToolCall;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.AssistantCommand;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ArtifactCompletionContract.Evaluation;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ArtifactCompletionContract.InvocationReceipt;
@@ -223,7 +224,7 @@ public class JpaTaskMaterializationAdapter implements TaskMaterializationPort {
         originEntity.setExecution(originEntity.getExecution().completePromotion(at));
         executions.saveAndFlush(originEntity);
         appendEventsAndOutbox(
-                List.of(promotionEvent(task, originEntity.getExecution(), rootCommand, at)),
+                List.of(promotionEvent(task, plan, originEntity.getExecution(), rootCommand, at)),
                 0,
                 task.taskId());
         return materialized;
@@ -1867,7 +1868,27 @@ public class JpaTaskMaterializationAdapter implements TaskMaterializationPort {
     }
 
     private static ExecutionEvent promotionEvent(
-            Task task, Execution origin, AssistantCommand rootCommand, Instant at) {
+            Task task, TaskPlan plan, Execution origin, AssistantCommand rootCommand, Instant at) {
+        var values = new java.util.LinkedHashMap<String, Object>();
+        values.put("promotedTaskId", task.taskId().value());
+        values.put("taskStatus", task.status().name());
+        values.put("executionStatus", Execution.Status.PROMOTED.name());
+        // 升级意图（ADR-011）：协调者节点角色与形态随升级事件公开，前端据此展示"转为任务"
+        var coordinator = plan.nodes().get("coordinator");
+        if (coordinator != null && coordinator.roleKey() != null) {
+            values.put("roleKey", coordinator.roleKey());
+        }
+        if (task.checkpoint() != null
+                && task.checkpoint().annotations().get("promotionShape") instanceof String shape) {
+            values.put("shape", shape);
+        }
+        // 升级触发方：网关携带待执行调用自动升级为 TOOL_GATE，模型显式调用 promote_to_task 为 MODEL
+        var pendingCall =
+                task.checkpoint() == null
+                        ? java.util.Optional.<PendingToolCall>empty()
+                        : PendingToolCall.fromAnnotation(task.checkpoint().annotations());
+        values.put("trigger", pendingCall.isPresent() ? "TOOL_GATE" : "MODEL");
+        pendingCall.ifPresent(call -> values.put("pendingToolName", call.toolName()));
         return new ExecutionEvent(
                 CanonicalExecutionEventId.of(
                         origin.tenantId(), origin.executionId(), "execution-promoted"),
@@ -1881,19 +1902,17 @@ public class JpaTaskMaterializationAdapter implements TaskMaterializationPort {
                 1,
                 ExecutionEventType.EXECUTION_PROMOTED,
                 ExecutionEventStatus.COMPLETED,
-                rootCommand.controlMode(),
+                // 升级事件归属 origin DIRECT execution（taskId 为空），沿用其 READ_ONLY；任务本身已是 DELEGATED
+                com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ControlMode
+                        .READ_ONLY,
                 OwnerType.ASSISTANT,
                 rootCommand.assistantId(),
                 null,
-                null,
+                origin.userId(),
                 origin.correlationId(),
                 null,
                 rootCommand.idempotencyKey(),
-                new ExecutionEventPayload(
-                        Map.of(
-                                "promotedTaskId", task.taskId().value(),
-                                "taskStatus", task.status().name(),
-                                "executionStatus", Execution.Status.PROMOTED.name())),
+                new ExecutionEventPayload(values),
                 at,
                 null);
     }
@@ -2292,20 +2311,35 @@ public class JpaTaskMaterializationAdapter implements TaskMaterializationPort {
                         && updatedPlan.nodes().get(command.nodeId()).status()
                                 == TaskPlan.Status.RETRYABLE;
         var currentTask = taskEntity.getTask();
-        var finalizer = nodeEntity.getDefinition().kind() == TaskPlan.TaskNode.Kind.AGGREGATOR;
+        // 交付节点即 finalizer：正式计划由聚合者交付；"仅协调者"计划（协调者直答，ADR-008）里协调者是唯一完成证据，
+        // 由它以 RUNNING 态直接完成任务，否则会被误判为缺少 finalizer 而暂停
+        var aggregatorFinalizer =
+                nodeEntity.getDefinition().kind() == TaskPlan.TaskNode.Kind.AGGREGATOR;
+        var coordinatorFinalizer =
+                nodeEntity.getDefinition().kind() == TaskPlan.TaskNode.Kind.COORDINATOR
+                        && "coordinator".equals(command.nodeId())
+                        && updatedPlan
+                                .goal()
+                                .completionEvidence()
+                                .equals(java.util.Set.of(command.nodeId()))
+                        && updatedPlan.nodes().values().stream()
+                                .noneMatch(
+                                        node -> node.kind() == TaskPlan.TaskNode.Kind.AGGREGATOR);
+        var finalizer = aggregatorFinalizer || coordinatorFinalizer;
+        var finalizerTaskStatus = aggregatorFinalizer ? Task.Status.VERIFYING : Task.Status.RUNNING;
         final Task updatedTask;
         final boolean planCompletedWithoutFinalizer;
         if (!failed && finalizer) {
             if (!updatedPlan.completed()) {
                 throw stale("finalizer 完成时 TaskPlan 尚未满足完成条件");
             }
-            if (currentTask.status() != Task.Status.VERIFYING
+            if (currentTask.status() != finalizerTaskStatus
                     || currentTask.owner().kind() != Task.OwnerKind.ASSISTANT
                     || !currentTask
                             .owner()
                             .ownerId()
                             .equals(executionEntity.getCommand().assistantId().value())) {
-                throw stale("finalizer 不是 current Task Owner Assistant 的 VERIFYING execution");
+                throw stale("finalizer 不是 current Task Owner Assistant 的交付 execution");
             }
             var rootResult =
                     new Task.RootResult(
@@ -2321,7 +2355,18 @@ public class JpaTaskMaterializationAdapter implements TaskMaterializationPort {
                             command.generation(),
                             command.fencingToken(),
                             command.at());
-            updatedTask = currentTask.completeWithRootResult(rootResult, command.at());
+            // 协调者直答以 RUNNING 提交，先进入 VERIFYING 再提交 RootResult，与聚合者交付走同一终态迁移
+            var verifyingTask =
+                    coordinatorFinalizer
+                            ? currentTask.withRuntime(
+                                    Task.Status.VERIFYING,
+                                    currentTask.owner(),
+                                    currentTask.budgetUsage(),
+                                    currentTask.checkpoint(),
+                                    currentTask.recoveryPoint(),
+                                    command.at())
+                            : currentTask;
+            updatedTask = verifyingTask.completeWithRootResult(rootResult, command.at());
             planCompletedWithoutFinalizer = false;
         } else {
             var finalizerReady =

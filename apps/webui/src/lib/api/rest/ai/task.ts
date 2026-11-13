@@ -159,11 +159,22 @@ export interface TaskDetails {
   decisionBlockers: string[]
 }
 
+/** Task 待处理工具授权（后端 TaskController.PendingApprovalVO） */
+export interface TaskPendingApproval {
+  approvalId: string
+  /** 请求执行的工具名 */
+  action: string
+  reason: string
+  impact: string
+  reversible: boolean
+}
+
 export const taskKeys = {
   all: ["assistant-tasks"] as const,
   active: ["assistant-tasks", "active"] as const,
   list: (conversationId: string) => [...taskKeys.all, "list", conversationId] as const,
-  detail: (taskId: string) => [...taskKeys.all, "detail", taskId] as const
+  detail: (taskId: string) => [...taskKeys.all, "detail", taskId] as const,
+  approvals: (taskId: string) => [...taskKeys.all, "approvals", taskId] as const
 }
 
 export const taskApi = {
@@ -174,6 +185,9 @@ export const taskApi = {
   /** 当前用户跨会话的未终结 Task（最多 50 条，按更新时间倒序） */
   active: () => backendApi.get<TaskDetails[]>(restEndpoints.ai.activeTasks),
   get: (taskId: string) => backendApi.get<TaskDetails>(restEndpoints.ai.task(taskId)),
+  /** Task 当前待处理的工具授权；后台执行的任务没有实时流，由任务卡片据此发起审批 */
+  approvals: (taskId: string) =>
+    backendApi.get<TaskPendingApproval[]>(restEndpoints.ai.taskApprovals(taskId)),
   pause: (taskId: string, reason: string) =>
     backendApi.post<TaskDetails>(restEndpoints.ai.taskPause(taskId), { reason }),
   resume: (taskId: string) => backendApi.post<TaskDetails>(restEndpoints.ai.taskResume(taskId), {}),

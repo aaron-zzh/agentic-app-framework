@@ -124,7 +124,8 @@ public record TaskPlanDraft(
                 throw new IllegalArgumentException("inputBindings 只能引用已声明依赖");
             }
             roleKey = requireText(roleKey, "roleKey");
-            skillKey = requireText(skillKey, "skillKey");
+            // 技能可空：省略时执行者以该角色运行，技能走 SELECT_AND_AUGMENT 按需加载（ADR-011）
+            skillKey = skillKey == null || skillKey.isBlank() ? null : skillKey.trim();
             Objects.requireNonNull(modelSelection, "modelSelection 不能为空");
             if (maxAttempts < 1 || maxAttempts > 3) {
                 throw new IllegalArgumentException("maxAttempts 必须在 1..3");

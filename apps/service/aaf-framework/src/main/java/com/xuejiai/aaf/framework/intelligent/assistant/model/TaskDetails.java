@@ -111,7 +111,8 @@ public record TaskDetails(
             int maxAttempts,
             String result,
             String failure,
-            ExecutorPlanDetails executorPlan) {
+            ExecutorPlanDetails executorPlan,
+            String roleKey) {
         public NodeDetails {
             nodeId = requireText(nodeId, "nodeId");
             kind = requireText(kind, "node kind");

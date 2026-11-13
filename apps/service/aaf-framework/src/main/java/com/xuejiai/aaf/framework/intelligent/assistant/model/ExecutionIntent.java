@@ -35,10 +35,6 @@ public record ExecutionIntent(
         if (trustedProjectId != null && trustedProjectId < 1) {
             throw new IllegalArgumentException("trustedProjectId 必须为正数");
         }
-        if (interactionMode == InteractionMode.TASK
-                && routeConstraint != RouteConstraint.ROUTE_FIXED) {
-            throw new IllegalArgumentException("TASK 执行必须使用 ROUTE_FIXED Route");
-        }
         if (routeConstraint == RouteConstraint.ROUTE_FIXED) {
             Objects.requireNonNull(resolvedRoute, "ROUTE_FIXED Route 必须包含已解析路由");
         } else if (resolvedRoute != null) {
@@ -120,8 +116,8 @@ public record ExecutionIntent(
      * 本次执行的角色/技能路由方式；不是请求字段，由服务端按请求是否声明 Role/Skill 推导。
      *
      * <ul>
-     *   <li>{@code ROUTE_FIXED}：Role 和/或 Skill 已固定并解析为 {@link ResolvedRoute}；TASK 恒为此值
-     *   <li>{@code ROUTE_AUTO}：未固定，由选择器动态决定；仅对话可用
+     *   <li>{@code ROUTE_FIXED}：Role 和/或 Skill 已固定并解析为 {@link ResolvedRoute}
+     *   <li>{@code ROUTE_AUTO}：未固定；对话由协调者按需切换角色，TASK 由协调者节点使用助理默认角色（ADR-011）
      * </ul>
      */
     public enum RouteConstraint {

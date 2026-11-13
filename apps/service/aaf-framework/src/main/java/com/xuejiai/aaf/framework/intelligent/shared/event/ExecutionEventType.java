@@ -24,6 +24,13 @@ public enum ExecutionEventType {
      */
     MESSAGE_BLOCK_COMPLETED,
 
+    /** 思考块开始（AgentScope {@code THINKING_BLOCK_START}），按 replyId + blockId 配对。 */
+    REASONING_STARTED,
+    /** 思考块增量（AgentScope {@code THINKING_BLOCK_DELTA}），瞬态展示数据，不落库、不进入最终回复。 */
+    REASONING_DELTA,
+    /** 思考块结束（AgentScope {@code THINKING_BLOCK_END}）。 */
+    REASONING_COMPLETED,
+
     MODEL_CALL_STARTED,
     MODEL_CALL_COMPLETED,
     MODEL_CALL_FAILED,
@@ -102,6 +109,8 @@ public enum ExecutionEventType {
     CONTROL_MODE_CHANGED,
     /** 本次执行冻结的 Role 已解析；同一任务内前后 roleKey 不同即为角色接力。 */
     ROLE_RESOLVED,
+    /** 轻量态协调者调用 activate_role 后，前一执行按切换收口；随后同一 Run 内由新角色续接执行（ADR-011）。 */
+    ROLE_SWITCHED,
 
     INPUT_CANCELED,
     INPUT_MODIFIED,

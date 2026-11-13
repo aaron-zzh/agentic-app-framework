@@ -37,6 +37,7 @@ import com.xuejiai.aaf.framework.intelligent.ai.embedding.EmbeddingService;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.PersistentHitlCoordinator;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.TaskCommandService;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.DirectPromotionPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.HitlCoordinatorPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.HitlTransitionPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.HumanApprovalPort;
@@ -475,7 +476,8 @@ public class IntelligentGovernanceAutoConfiguration {
             ConnectorActionPort connectors,
             ConversationLeasePort leases,
             TaskUnitOfWork delegatedTasks,
-            InvocationReceiptPort receipts) {
+            InvocationReceiptPort receipts,
+            ObjectProvider<DirectPromotionPort> promotions) {
         return new DefaultToolGateway(
                 grants,
                 approvals,
@@ -485,7 +487,9 @@ public class IntelligentGovernanceAutoConfiguration {
                 connectors,
                 leases,
                 delegatedTasks,
-                receipts);
+                receipts,
+                // 延迟获取：TaskCommandService → Assistant → Agent → Gateway 构成循环，调用时才解析升级端口
+                (context, call) -> promotions.getObject().promoteForPendingCall(context, call));
     }
 
     private static Path workspaceRoot(Environment environment) {

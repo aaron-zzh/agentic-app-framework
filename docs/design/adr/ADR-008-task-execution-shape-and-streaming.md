@@ -149,6 +149,7 @@ AgentScope 原生的任务与子智能体工具是分开的多个工具（见 `d
   - 轻量态升级为任务态沿用现有 `promoteDirect`：原 Execution 标记 `PROMOTED`，生成 `TaskPlan.coordinated` 并以升级命令重新派发协调者节点（`Source.PROMOTION`）。升级是新开一个执行，不是在原循环里原地继续
 - 命名：`AgentKind.PRIMARY`、`InvocationPolicy.PRIMARY`、`primaryMinimal` 并入 `COORDINATOR`，指令文本与上下文披露合为一套；文档与对外术语统一称"协调者"（原因：`COORDINATOR` 已贯穿节点类型、保留节点键 `coordinator`、计划与事件，改名成本最低；"主智能体"可在文档中作为协调者的说明性别名）
 - 轻量态支持 HITL：授权审批与结构化澄清依赖持久中断点与恢复，必须有 Task，所以轻量态内遇到"需要授权的工具调用、结构化澄清、多步骤持久"时必须**升级**。现状只靠指令文本要求模型在外部副作用前调用升级工具，建议增加 harness 约束：轻量态下 `ToolGateway` 判定某调用需要授权时，自动触发升级而不是直接拒绝。该约束需要核实能否保留已产生的输出与待执行的工具调用，升级后协调者重新执行，不保证延续原循环中间态
+  - **已采纳（AAF-128，2026-11-12）**：网关在 grant 查询与副作用之前自动升级，把待执行调用（`PendingToolCall`）存入 Task checkpoint `promotionPendingCall`；协调者节点首次尝试把该调用合成为挂起 tool_use 以空输入启动，首轮不调模型、直接走标准 HITL。授权工具对轻量态可见但规则为 `promotionOnly`，轻量态仍不执行授权类动作。`EXECUTION_PROMOTED` 带 `trigger=MODEL|TOOL_GATE`。详见 [AAF-128 设计](../../task/v0.13/AAF-128/design.md)
 - 轻量态不支持 `plan_steps`：`ExecutorPlan` 以 `taskId` 与 `nodeId` 为键持久化，没有 Task 无法使用；多步骤诉求走升级
 - 升级补充技能与工具：升级产生新的执行，画像在新执行开始时重新冻结，因此任务态独有的技能（`builtin-step-planning`、`builtin-agent-delegation`）与工具（`plan_steps`、`report_step`、`delegate_agents`）随新执行自然补入，不需要在原循环中途追加；轻量态独有的任务控制工具在任务态不再提供
 - 升级继承技能：`TaskCommandService.promoteDirect` 构造 `TaskPlan.coordinated` 时 `skillKey` 目前传 `null`，需改为继承轻量态执行画像中已激活的 FIXED 技能（已确认要继承）

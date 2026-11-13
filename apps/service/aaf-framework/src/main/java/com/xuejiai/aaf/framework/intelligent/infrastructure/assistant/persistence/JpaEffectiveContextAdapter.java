@@ -54,7 +54,7 @@ public class JpaEffectiveContextAdapter implements EffectiveContextPort {
                         role.roleKey(),
                         Long.toString(profile.assistantRevision()),
                         "ASSISTANT",
-                        "RoleSelector 选定的当前任务职责边界",
+                        "当前执行冻结的任务职责边界",
                         role.roleName(),
                         false));
         candidates.stream()

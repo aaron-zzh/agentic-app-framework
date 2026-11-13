@@ -86,7 +86,7 @@ related:
     - 改写 `InvocationPolicy.COORDINATOR`：允许简单任务直答，规则只在技能中维护一份，去掉"不得生成最终业务内容"与"必须调用提交工具"的冲突表述
     - 已实施，待运行验证（合同版本升为 3）；静态核对缺口已修：`PromptAssembler.invocationSource` 对协调者在分解策略为 `NONE` / `REQUIRED` 时追加"分解策略"行并声明覆盖通用的直答规则；指令中三档规则仍简述一份（入参清单按 ADR 保留）
     - verify: 指令文本与 `builtin-task-triage` 等技能无矛盾；FIXED 文案请求的协调者直答被判定为合法完成
-12. 🚫 #11712 轻量态自动升级（先做可行性验证）
+12. ✅ #11712 轻量态自动升级（先做可行性验证）— 已由 [AAF-128](../AAF-128/design.md) 实现（2026-11-12），下方为当时的验证结论，保留作历史
     - 轻量态下 `ToolGateway` 判定调用需要授权，或需要结构化澄清、多步骤持久时，自动触发 `promoteDirect` 而不是拒绝；先验证升级后能否保留已产生输出与待执行调用
     - 先出验证结论，结论不可行则改为只在指令层要求提前升级并记录限制
     - 验证结论（2026-10-12 修正）：轻量态下 `DefaultToolGateway` 在创建任何 `HumanApproval` 之前就以错误拒绝授权/副作用工具（`taskId == null && grantRequired`），因此不存在需要作废的审批或 interrupt，此前"需抑制 interrupt、作废审批"的判断有误。升级仍是新开执行，原循环中间输出与待执行调用不保留。按"先简单实现"落地：拒绝错误现在直接指明 `promote_to_task`，模型在同一循环内收到后即可升级；加上 `InvocationPolicy.COORDINATOR` 与 `builtin-task-triage` 的前置要求。未做 harness 自动触发——工具错误在事件里不带原因，检测需要在网关与事件映射间新增证据通道，收益有限

@@ -58,6 +58,8 @@ import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Textarea } from "@/components/ui/textarea"
 import { deriveVoiceOrbState, VoiceControl, VoiceOrb } from "@/components/voice"
+import { AgentRunStatus } from "@/features/livechat/components/AgentRunStatus"
+import { SubTaskActivityList } from "@/features/livechat/components/SubTaskActivityList"
 import { type AgentSuggestion, useAgentRunStore } from "@/features/livechat/runtime/agent-run-store"
 import { SpeechOutput } from "@/features/livechat/voice/SpeechOutput"
 import { chatApi } from "@/lib/api/rest/ai"
@@ -66,7 +68,8 @@ import { useVoiceConfig } from "@/lib/store/voice-config"
 import { cn } from "@/lib/utils/cn"
 import { formatMessageTime } from "@/lib/utils/format-time"
 import { useServerTts } from "../hooks/use-server-tts"
-import { CONTROL_TOOL_NAMES, ControlToolChip } from "./ControlToolChip"
+import { CONTROL_TOOL_NAMES, ControlToolChip, ToolGatePromotionChip } from "./ControlToolChip"
+import { ConversationCreditBar } from "./ConversationCreditBar"
 import { MarkdownText } from "./MarkdownText"
 
 /** AI 消息内容提取（用于 TTS） */
@@ -479,18 +482,34 @@ function AssistantMessage({
   const text = useMessageText()
   const createdAt = useAuiState((s) => s.message.createdAt)
   const ttsMode = useVoiceConfig((s) => s.ttsMode)
-  // 生成中且尚无可见内容（推理被隐藏时也算无内容）→ 在本气泡内显示思考占位，不另起气泡
-  const awaitingContent = useAuiState(
-    (s) =>
-      s.message.role === "assistant" &&
-      s.message.status?.type === "running" &&
-      s.message.content.every((p) => !showThinking && p.type === "reasoning")
+  // 生成中且尚无可见内容 → 在本气泡内显示思考占位，不另起气泡。
+  // 可见内容：非空文本、工具调用、来源；推理仅在开启"显示思考"时算可见。
+  // 流式开始时可能先到一个空文本片段，不能据此撤掉占位，否则会出现空气泡。
+  const hasVisibleContent = useAuiState((s) =>
+    s.message.content.some(
+      (p) =>
+        (p.type === "text" && p.text.trim().length > 0) ||
+        p.type === "tool-call" ||
+        p.type === "source" ||
+        (showThinking && p.type === "reasoning" && p.text.trim().length > 0)
+    )
   )
+  const running = useAuiState(
+    (s) => s.message.role === "assistant" && s.message.status?.type === "running"
+  )
+  const awaitingContent = running && !hasVisibleContent
+  // 运行记录按轮清空，网关自动升级提示只挂在当前轮最后一条助手消息上
+  const isLastMessage = useAuiState((s) => s.message.isLast)
+  // 已结束但没有任何可见内容（如推理被隐藏、模型未输出正文）：给出一行说明，避免留下空气泡
+  const finishedEmpty = !running && !hasVisibleContent
 
   return (
     <MessagePrimitive.Root className="mb-3 flex flex-col items-start">
       <div className="max-w-[85%] rounded-lg bg-muted px-3 py-2 text-sm">
         {awaitingContent && <ThinkingIndicator />}
+        {finishedEmpty && (
+          <span className="text-muted-foreground text-xs">本轮已结束，没有生成文字回复</span>
+        )}
         {/* 消息内容：Markdown + 推理（Chain of Thought 分组折叠） + 工具调用 + Generative UI */}
         <MessagePrimitive.GroupedParts
           groupBy={groupPartByType({
@@ -557,6 +576,9 @@ function AssistantMessage({
           }}
         </MessagePrimitive.GroupedParts>
 
+        {/* 授权工具触发的自动升级提示（aaf.task.promoted trigger=TOOL_GATE） */}
+        {isLastMessage && <ToolGatePromotionChip />}
+
         {/* 错误展示 */}
         <MessagePrimitive.Error>
           <ErrorPrimitive.Root className="mt-2 rounded-md border border-destructive bg-destructive/10 p-2 text-destructive text-xs">
@@ -584,6 +606,8 @@ function AssistantMessage({
           </time>
         )}
         <AssistantActionBar guestMode={guestMode} />
+        {/* 积分随对话流显示在最后一条回复的操作栏旁，本轮结束后刷新 */}
+        {!guestMode && isLastMessage && !running && <ConversationCreditBar />}
       </div>
     </MessagePrimitive.Root>
   )
@@ -770,6 +794,10 @@ export function ChatterThread({
             </div>
           </div>
         )}
+
+        {/* 子智能体进度跟随消息流；阶段与工具名已在气泡内显示，这里只补充过程性记录 */}
+        {!guestMode && <SubTaskActivityList />}
+        {!guestMode && <AgentRunStatus processOnly />}
 
         {/* 对话后续建议（AAF-114 #11412）：非空对话场景下展示服务端推送的建议，与欢迎页建议共用同一状态源 */}
         <FollowUpSuggestions />

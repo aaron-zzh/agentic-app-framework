@@ -19,6 +19,7 @@ import java.util.stream.Stream;
 
 import com.xuejiai.aaf.framework.intelligent.agent.model.AuthorizationGrant;
 import com.xuejiai.aaf.framework.intelligent.agent.model.InvocationContext;
+import com.xuejiai.aaf.framework.intelligent.agent.model.PendingToolCall;
 import com.xuejiai.aaf.framework.intelligent.agent.port.AuthorizationGrantPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ConnectorActionPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ConnectorActionPort.ConnectorAction;
@@ -27,6 +28,7 @@ import com.xuejiai.aaf.framework.intelligent.agent.port.InvocationReceiptPort.Di
 import com.xuejiai.aaf.framework.intelligent.agent.port.InvocationReceiptPort.ReceiptRequest;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolCatalogPort.ToolDefinition;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolGatewayPort;
+import com.xuejiai.aaf.framework.intelligent.agent.port.ToolGatewayPort.PromotionHandoffException;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolInvocationPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolInvocationPort.ToolInvocation;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolInvocationPort.ToolInvocationResult;
@@ -34,6 +36,7 @@ import com.xuejiai.aaf.framework.intelligent.agent.port.ToolParameterPolicyPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.HitlTransition.AuthorizationRequestTransition;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.HumanApproval;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.DirectPromotionPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.HitlTransitionPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.HumanApprovalPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskUnitOfWork;
@@ -46,6 +49,7 @@ import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.EventId;
 
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 /** Agent 工具唯一生产入口：授权、fencing、预算和统一 receipt 均 fail-closed。 */
 @Slf4j
@@ -61,6 +65,7 @@ public final class DefaultToolGateway implements ToolGatewayPort {
     private final ConversationLeasePort leases;
     private final TaskUnitOfWork delegatedTasks;
     private final InvocationReceiptPort receipts;
+    private final DirectPromotionPort promotions;
 
     public DefaultToolGateway(
             AuthorizationGrantPort grants,
@@ -71,7 +76,8 @@ public final class DefaultToolGateway implements ToolGatewayPort {
             ConnectorActionPort connectors,
             ConversationLeasePort leases,
             TaskUnitOfWork delegatedTasks,
-            InvocationReceiptPort receipts) {
+            InvocationReceiptPort receipts,
+            DirectPromotionPort promotions) {
         this.grants = Objects.requireNonNull(grants, "grants 不能为空");
         this.approvals = Objects.requireNonNull(approvals, "approvals 不能为空");
         this.parameterPolicy = Objects.requireNonNull(parameterPolicy, "parameterPolicy 不能为空");
@@ -81,6 +87,7 @@ public final class DefaultToolGateway implements ToolGatewayPort {
         this.leases = Objects.requireNonNull(leases, "leases 不能为空");
         this.delegatedTasks = Objects.requireNonNull(delegatedTasks, "delegatedTasks 不能为空");
         this.receipts = Objects.requireNonNull(receipts, "receipts 不能为空");
+        this.promotions = Objects.requireNonNull(promotions, "promotions 不能为空");
     }
 
     @Override
@@ -105,9 +112,9 @@ public final class DefaultToolGateway implements ToolGatewayPort {
                         || rule.authorizationRequired()
                         || definition.requireConfirm();
         if (context.taskId() == null && grantRequired) {
-            return Mono.error(
-                    new IllegalStateException(
-                            "DIRECT execution 触及授权或副作用边界，请先调用 promote_to_task 升级为 Task 后再执行该工具"));
+            // 轻量态不执行授权类动作：在 grant 查询与副作用之前携带该调用自动升级为 Task，由协调者节点经标准 HITL 执行。
+            // 参数策略对写工具要求已绑定 grant，此处跳过；任务态重放时网关按同一路径完整校验
+            return promoteForPendingCall(definition, invocation, resource);
         }
         log.debug(
                 "[工具网关] 工具调用已通过可见性校验：taskId={}，tool={}，只读={}，可撤销={}，需要授权={}",
@@ -230,6 +237,42 @@ public final class DefaultToolGateway implements ToolGatewayPort {
                                         receiptKey, context, failure.getMessage(), Instant.now());
                             }
                             return Mono.error(failure);
+                        });
+    }
+
+    private Mono<ToolInvocationResult> promoteForPendingCall(
+            ToolDefinition definition, ToolInvocation invocation, String resource) {
+        var context = invocation.context();
+        var toolName = definition.ref().name();
+        if (!context.toolAuthorization()
+                .rules()
+                .containsKey(DirectPromotionPort.PROMOTE_TOOL_NAME)) {
+            return Mono.error(new IllegalStateException("当前执行不能升级为任务，无法执行需授权工具: " + toolName));
+        }
+        var toolId = definition.ref().toolId();
+        var call =
+                new PendingToolCall(
+                        invocation.toolCallId(),
+                        toolName,
+                        toolId,
+                        invocation.arguments(),
+                        resource,
+                        PendingToolCall.digestOf(toolId, invocation.arguments()),
+                        context.executionId(),
+                        Instant.now());
+        return Mono.fromCallable(() -> promotions.promoteForPendingCall(context, call))
+                .subscribeOn(Schedulers.boundedElastic())
+                .flatMap(
+                        handoff -> {
+                            log.info(
+                                    "[工具网关] 轻量态触及授权工具，已自动升级：executionId={}，tool={}，taskId={}",
+                                    context.executionId().value(),
+                                    toolName,
+                                    handoff.taskId().value());
+                            return Mono.<ToolInvocationResult>error(
+                                    new PromotionHandoffException(
+                                            handoff.taskId().value(),
+                                            "工具 %s 需要用户审批，已自动转为任务，本轮结束".formatted(toolName)));
                         });
     }
 

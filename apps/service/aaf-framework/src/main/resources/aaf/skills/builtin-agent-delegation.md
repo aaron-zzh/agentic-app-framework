@@ -19,8 +19,9 @@ systemBinding: ALWAYS | 112
 - `aggregationContract`：聚合方式，`kind` 为 `PASS_THROUGH`、`ORDERED_CONCAT` 或 `AGGREGATOR_REDUCE`；
   `AGGREGATOR_REDUCE` 必须同时提供 `requirements`（写给聚合者的聚合要求，默认上限 8000 字符）
 - `executors`：执行者列表，每项含 `nodeId`、`description`、`modelMode`，可选 `roleKey`、`skillKey`、`dependsOn`、`inputBindings`。
-  省略 `roleKey`/`skillKey` 即与你相同；需要其它 Role 或 Skill 时指定，必须属于当前 Assistant 的候选目录，且该
-  Role 的工具集不得超出你的 Role，否则会被拒绝并返回候选目录
+  省略 `roleKey` 即与你相同；需要其它角色时从角色目录中为执行者选择，必须属于当前 Assistant 已发布的角色。
+  `skillKey` 可选：省略时同角色继承你的技能，换角色则由执行者按需加载；指定时必须属于该角色的候选技能，
+  否则会被拒绝并返回候选目录
 - `iterationGroup`：可选迭代组
 
 ## 规则

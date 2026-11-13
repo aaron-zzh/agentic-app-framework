@@ -184,6 +184,10 @@ public final class ExecutionEventPublicMapper {
                 copyText(source, safe, "promotedTaskId");
                 copyText(source, safe, "taskStatus");
                 copyText(source, safe, "executionStatus");
+                copyText(source, safe, "roleKey");
+                copyText(source, safe, "shape");
+                copyText(source, safe, "trigger");
+                copyText(source, safe, "pendingToolName");
             }
             case COMMAND_REJECTED -> safe.put("errorCode", "ASSISTANT_COMMAND_REJECTED");
             case RUN_FAILED, EXECUTION_FAILED ->
@@ -193,6 +197,13 @@ public final class ExecutionEventPublicMapper {
                 copyText(source, safe, "roleName");
                 copyText(source, safe, "routeConstraint");
                 copyText(source, safe, "interactionMode");
+                copyText(source, safe, "selectedBy");
+            }
+            case ROLE_SWITCHED -> {
+                copyText(source, safe, "fromRoleKey");
+                copyText(source, safe, "toRoleKey");
+                copyText(source, safe, "toRoleName");
+                copyText(source, safe, "reason");
             }
             default -> {
                 // 未显式注册的 payload 字段一律不公开。

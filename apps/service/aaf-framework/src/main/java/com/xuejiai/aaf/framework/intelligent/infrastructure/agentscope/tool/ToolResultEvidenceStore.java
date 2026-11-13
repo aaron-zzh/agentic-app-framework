@@ -13,6 +13,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
+import com.xuejiai.aaf.framework.intelligent.agent.port.ToolGatewayPort;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.ExecutionId;
 
 import lombok.extern.slf4j.Slf4j;
@@ -51,7 +52,9 @@ public final class ToolResultEvidenceStore {
                     "completionEvidence",
                     "approvalId",
                     "requestId",
-                    "clarificationRequired");
+                    "clarificationRequired",
+                    ToolGatewayPort.CONTROL_HANDOFF_KEY,
+                    "promotedTaskId");
 
     private final ConcurrentMap<EvidenceKey, StoredEvidence> evidence = new ConcurrentHashMap<>();
     private final Clock clock;
@@ -112,6 +115,25 @@ public final class ToolResultEvidenceStore {
         return Optional.ofNullable(
                         evidence.remove(new EvidenceKey(executionId.value(), toolCallId)))
                 .map(StoredEvidence::values);
+    }
+
+    /**
+     * 该执行是否已有原子提交的授权/澄清等待（证据带 approvalId 或 requestId）尚未被 TOOL_RESULT_END 回送。 此期间原 Dispatch
+     * 已关闭，其余尾随事件无法也不应再落库。
+     */
+    public boolean hasCommittedInterrupt(ExecutionId executionId) {
+        Objects.requireNonNull(executionId, "executionId 不能为空");
+        return evidence.entrySet().stream()
+                .filter(entry -> entry.getKey().executionId().equals(executionId.value()))
+                .map(entry -> entry.getValue().values())
+                .anyMatch(
+                        values ->
+                                (Boolean.TRUE.equals(values.get("authorizationRequired"))
+                                                && !Objects.toString(values.get("approvalId"), "")
+                                                        .isBlank())
+                                        || (Boolean.TRUE.equals(values.get("clarificationRequired"))
+                                                && !Objects.toString(values.get("requestId"), "")
+                                                        .isBlank()));
     }
 
     /** 执行终止时清空该执行的全部残留证据；无论正常完成、失败、取消都必须调用。 */

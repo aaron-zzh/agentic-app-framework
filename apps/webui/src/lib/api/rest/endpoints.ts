@@ -60,6 +60,7 @@ export const restEndpoints = {
     tasks: "/ai/tasks",
     activeTasks: "/ai/tasks/active",
     task: (taskId: string) => `/ai/tasks/${taskId}`,
+    taskApprovals: (taskId: string) => `/ai/tasks/${taskId}/approvals`,
     taskPause: (taskId: string) => `/ai/tasks/${taskId}/pause`,
     taskResume: (taskId: string) => `/ai/tasks/${taskId}/resume`,
     taskTakeOver: (taskId: string) => `/ai/tasks/${taskId}/take-over`,

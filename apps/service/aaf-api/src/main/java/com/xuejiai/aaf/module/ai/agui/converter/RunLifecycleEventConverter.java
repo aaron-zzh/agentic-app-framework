@@ -40,11 +40,14 @@ import io.agentscope.core.agui.event.AguiEvent;
  */
 public final class RunLifecycleEventConverter implements AafAguiEventConverter {
 
+    /**
+     * {@code EXECUTION_PROMOTED} 不在此收口（ADR-011）：升级后同一条 SSE 继续跟随任务事件，由 fallback 投影为 CUSTOM {@code
+     * aaf.task.promoted}，RUN_FINISHED 改由任务交付节点完成时发出。
+     */
     @Override
     public Set<ExecutionEventType> supportedTypes() {
         return Set.of(
                 ExecutionEventType.EXECUTION_STARTED,
-                ExecutionEventType.EXECUTION_PROMOTED,
                 ExecutionEventType.EXECUTION_COMPLETED,
                 ExecutionEventType.EXECUTION_FAILED,
                 ExecutionEventType.EXECUTION_CANCELED,
@@ -58,7 +61,7 @@ public final class RunLifecycleEventConverter implements AafAguiEventConverter {
     public List<AguiEvent> convert(ExecutionEvent event, AafAguiStreamContext context) {
         return switch (event.type()) {
             case EXECUTION_STARTED -> context.runStarted();
-            case EXECUTION_PROMOTED, EXECUTION_COMPLETED -> context.runFinishedOnce();
+            case EXECUTION_COMPLETED -> context.runFinishedOnce();
             case EXECUTION_FAILED, EXECUTION_CANCELED, COMMAND_REJECTED, RUN_FAILED ->
                     context.runError(errorCode(event));
             case AUTHORIZATION_REQUESTED -> context.runInterrupted(List.of(interrupt(event)));

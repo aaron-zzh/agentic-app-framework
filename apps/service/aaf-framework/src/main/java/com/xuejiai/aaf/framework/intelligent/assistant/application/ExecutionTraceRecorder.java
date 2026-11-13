@@ -11,6 +11,7 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
 
+import com.xuejiai.aaf.framework.intelligent.agent.port.ToolGatewayPort;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventType;
 
@@ -336,7 +337,12 @@ final class ExecutionTraceRecorder {
         var values = event.payload().values();
         switch (event.type()) {
             case MODEL_CALL_STARTED -> modelCalls.add(new ModelCall(event.createdAt()));
-            case MESSAGE_STARTED, MESSAGE_DELTA, TOOL_CALL_STARTED, TOOL_CALL_ARGS_DELTA ->
+            case MESSAGE_STARTED,
+                    MESSAGE_DELTA,
+                    REASONING_STARTED,
+                    REASONING_DELTA,
+                    TOOL_CALL_STARTED,
+                    TOOL_CALL_ARGS_DELTA ->
                     openModelCall().ifPresent(call -> call.firstOutput(event.createdAt()));
             case MODEL_CALL_COMPLETED, MODEL_CALL_FAILED -> {
                 var call = openModelCall().orElse(null);
@@ -388,7 +394,14 @@ final class ExecutionTraceRecorder {
                     call.executionStartedAt = event.createdAt();
                 }
             }
-            case TOOL_CALL_COMPLETED -> completeTool(key, values, event.createdAt(), "成功");
+            case TOOL_CALL_COMPLETED ->
+                    completeTool(
+                            key,
+                            values,
+                            event.createdAt(),
+                            Boolean.TRUE.equals(values.get(ToolGatewayPort.CONTROL_HANDOFF_KEY))
+                                    ? "已交接"
+                                    : "成功");
             case TOOL_CALL_FAILED -> completeTool(key, values, event.createdAt(), "失败");
             case AUTHORIZATION_REQUESTED -> completeTool(key, values, event.createdAt(), "待授权");
             default -> {

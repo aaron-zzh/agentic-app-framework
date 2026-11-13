@@ -34,23 +34,22 @@ class ExecutionIntentTest {
     }
 
     @Test
-    void taskCannotUseAutoRoute() {
-        assertThatThrownBy(
-                        () ->
-                                new ExecutionIntent(
-                                        ExecutionIntent.InteractionMode.TASK,
-                                        ExecutionIntent.RouteConstraint.ROUTE_AUTO,
-                                        ExecutionIntent.ClarificationPolicy.FAIL_ON_BLOCKER,
-                                        null,
-                                        ArtifactPolicy.returnOnly(
-                                                OutputKind.DOCUMENT, "text/markdown"),
-                                        ActionAuthorizationPolicy.requestOnDemand(),
-                                        null,
-                                        null,
-                                        null,
-                                        null))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("TASK");
+    void taskCanUseAutoRoute() {
+        var intent =
+                new ExecutionIntent(
+                        ExecutionIntent.InteractionMode.TASK,
+                        ExecutionIntent.RouteConstraint.ROUTE_AUTO,
+                        ExecutionIntent.ClarificationPolicy.FAIL_ON_BLOCKER,
+                        null,
+                        ArtifactPolicy.returnOnly(OutputKind.DOCUMENT, "text/markdown"),
+                        ActionAuthorizationPolicy.requestOnDemand(),
+                        null,
+                        null,
+                        null,
+                        null);
+
+        assertThat(intent.routeConstraint()).isEqualTo(ExecutionIntent.RouteConstraint.ROUTE_AUTO);
+        assertThat(intent.resolvedRoute()).isNull();
     }
 
     @Test

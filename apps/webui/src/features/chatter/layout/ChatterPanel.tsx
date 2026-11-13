@@ -14,15 +14,12 @@ import { useTaskList } from "@/features/chatter/hooks/use-task-list"
 import { ClarificationInterruptPanel } from "@/features/chatter/runtime/ui-block/ClarificationInterruptPanel"
 import { TaskPanel } from "@/features/chatter/task/TaskPanel"
 import { ToolConfirmOverlay } from "@/features/chatter/task/ToolConfirmOverlay"
-import { ChatterThread, ConversationCreditBar } from "@/features/chatter/thread"
+import { ChatterThread } from "@/features/chatter/thread"
 import type {
   ChatterDisplayPreferences,
   ChatterDropItem,
   TaskModelSelection
 } from "@/features/chatter/types"
-import { AgentRunStatus } from "@/features/livechat/components/AgentRunStatus"
-import { SelectedRoleBadge } from "@/features/livechat/components/SelectedRoleBadge"
-import { SubTaskActivityList } from "@/features/livechat/components/SubTaskActivityList"
 
 interface ChatterPanelProps {
   toolbar: ReactNode
@@ -78,17 +75,13 @@ export function ChatterPanel({
   return (
     <div className="flex h-full flex-col">
       {toolbar}
-      {/* 运行态指示挂载位置参照 livechat/ChatLayout：角色标识在消息流上方，子任务与运行状态在下方 */}
-      {!guestMode && <SelectedRoleBadge />}
       <ChatterThread guestMode={guestMode} showThinking={displayPreferences.showThinking} />
-      {!guestMode && <SubTaskActivityList />}
-      {!guestMode && <AgentRunStatus />}
       {!guestMode && <ClarificationInterruptPanel />}
       {!guestMode && <ToolConfirmOverlay />}
       {!guestMode && displayPreferences.showPlan && (
         <TaskPanel tasks={tasks} progress={progress} isLoading={isLoading} />
       )}
-      {!guestMode && <ConversationCreditBar />}
+      {/* 对话积分已移入对话流（最后一条回复的操作栏旁） */}
       {guestMode ? (
         composer
       ) : (

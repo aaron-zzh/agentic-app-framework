@@ -17,6 +17,7 @@ import com.xuejiai.aaf.framework.intelligent.agent.model.ToolRef;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ContextAwareToolHandler;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolCatalogPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolInvocationPort;
+import com.xuejiai.aaf.framework.security.PermissionExecutionContextHolder;
 
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
@@ -85,8 +86,17 @@ public final class RegistryToolPortAdapter implements ToolCatalogPort, ToolInvoc
                                                                             + invocation
                                                                                     .tool()
                                                                                     .name()));
-                            var output =
-                                    callback.call(JsonUtils.toJsonString(invocation.arguments()));
+                            // callback 在 boundedElastic 线程执行，没有请求的 SecurityContext：
+                            // 以 InvocationContext 的受信 userId 绑定归属者，工具内 OperatorContext 才能取到委托用户。
+                            final String output;
+                            try (var ignored =
+                                    PermissionExecutionContextHolder.useOwner(
+                                            ownerId(invocation),
+                                            "agent-tool:" + invocation.tool().name())) {
+                                output =
+                                        callback.call(
+                                                JsonUtils.toJsonString(invocation.arguments()));
+                            }
                             return new ToolInvocationResult(
                                     output,
                                     Map.of(
@@ -94,6 +104,16 @@ public final class RegistryToolPortAdapter implements ToolCatalogPort, ToolInvoc
                                             "toolVersion", invocation.tool().version()));
                         })
                 .subscribeOn(Schedulers.boundedElastic());
+    }
+
+    /** InvocationContext 的 userId 是服务端冻结的认证用户 ID（数字字符串）。 */
+    private static Long ownerId(ToolInvocation invocation) {
+        var userId = invocation.context().userId().value();
+        try {
+            return Long.valueOf(userId);
+        } catch (NumberFormatException failure) {
+            throw new IllegalStateException("工具调用的 userId 不是有效用户 ID: " + userId, failure);
+        }
     }
 
     /** 解析单个工具：版本与标识校验 → 目录元数据 → 内置处理器或 callback → schema。 */

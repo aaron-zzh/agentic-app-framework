@@ -28,7 +28,7 @@ function toThreadMessage(msg: ChatMessageVO): ThreadMessage {
       id: msg.id,
       role: "user" as const,
       content: [{ type: "text" as const, text: msg.content }],
-      createdAt: new Date(msg.createdAt),
+      createdAt: new Date(msg.createTime),
       attachments: [],
       metadata: { custom: {} }
     } as ThreadMessage
@@ -37,7 +37,7 @@ function toThreadMessage(msg: ChatMessageVO): ThreadMessage {
     id: msg.id,
     role: "assistant" as const,
     content: [{ type: "text" as const, text: msg.content }],
-    createdAt: new Date(msg.createdAt),
+    createdAt: new Date(msg.createTime),
     status: { type: "complete" as const, reason: "stop" as const },
     metadata: { custom: {} }
   } as unknown as ThreadMessage
@@ -95,7 +95,7 @@ export function LivechatProvider({ config, children }: LivechatProviderProps) {
           sessionId,
           role: isSelf ? "user" : "assistant",
           content,
-          createdAt: new Date().toISOString()
+          createTime: new Date().toISOString()
         }
         setMessages((prev) => {
           // 去重优化：O(1) Set 查找替代 O(n) 数组遍历

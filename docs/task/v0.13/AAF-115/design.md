@@ -175,12 +175,14 @@ Controller/应用入口不在数据库事务内执行模型、Agent、Tool 或�
 - 事务内只做身份校验、状态转换、事实/event/outbox 写入；Agent、模型、Tool、网络和通知只能在提交后执行。
 - lease、generation 和 fencingToken 只以 active TaskDispatch 为当前真理；AgentState、Execution 快照和 event 不能重新开放执行权。
 - claim、ACTIVE state load/save、side-effect intent、receipt 和 result commit 都必须重验 current dispatch；关闭后的 HITL 最终快照只允许 exact waiting 且确认没有新 active Dispatch。旧 revision、attempt、generation、fence 或 lease owner 的写入 fail-closed。
+- HITL 等待由事务原子提交（含 canonical 等待事件）后，节点不再追加 VALIDATION_*/EXECUTION_PAUSED，也不调用结果 commit（AAF-128 #12805）。
 
 ### promotion 与副作用互斥
 
 - DIRECT promotion 和 side-effect intent 必须锁同一个 origin Execution，并以 promotionState/sideEffectEpoch 互斥。
 - 只有仍为 ELIGIBLE、sideEffectEpoch=0 且不存在已提交、未知或进行中副作用事实的 DIRECT Execution 才能 promotion。
 - promotion 原子创建 Task、最小 TaskPlan、TaskNode Execution、Dispatch、event/outbox，并让 origin Execution 进入 PROMOTED；不能复制隐藏 CoT、scratchpad 或未冻结 AgentState。
+- 网关自动升级（AAF-128）可携带一条结构化待执行调用 `PendingToolCall`（工具名、参数、resource、参数摘要），存 Task checkpoint `promotionPendingCall`；它不是 CoT 或 AgentState，协调者节点首次尝试据此合成挂起 tool_use 重放。
 
 ### pause、cancel 与责任主体切换
 

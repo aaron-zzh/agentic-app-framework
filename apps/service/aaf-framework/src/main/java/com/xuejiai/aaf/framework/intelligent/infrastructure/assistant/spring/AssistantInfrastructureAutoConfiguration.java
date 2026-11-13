@@ -20,8 +20,10 @@ import com.xuejiai.aaf.framework.intelligent.agent.port.AgentExecutionPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.AuthorizationGrantPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.SkillCatalogPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.SkillReferenceCatalogPort;
+import com.xuejiai.aaf.framework.intelligent.agent.port.SkillToolCatalogPort;
 import com.xuejiai.aaf.framework.intelligent.ai.chat.AiAutoConfiguration;
 import com.xuejiai.aaf.framework.intelligent.ai.chat.AiProperties;
+import com.xuejiai.aaf.framework.intelligent.assistant.application.ActivateRoleTool;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.AmendTaskTool;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.AssistantApplicationService;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.CancelTaskTool;
@@ -29,7 +31,7 @@ import com.xuejiai.aaf.framework.intelligent.assistant.application.CompletionVal
 import com.xuejiai.aaf.framework.intelligent.assistant.application.ContextLoadTool;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultCompletionValidator;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultEffectiveSkillResolver;
-import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultRoleSelector;
+import com.xuejiai.aaf.framework.intelligent.assistant.application.DirectRoleHandoffRegistry;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.EffectiveSkillResolver;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.EffectiveToolResolver;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.HandBackTaskTool;
@@ -41,7 +43,6 @@ import com.xuejiai.aaf.framework.intelligent.assistant.application.RenderUiBlock
 import com.xuejiai.aaf.framework.intelligent.assistant.application.ReportExecutorStepTool;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.RequestClarificationTool;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.ResumeTaskTool;
-import com.xuejiai.aaf.framework.intelligent.assistant.application.RoleSelector;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.SubmitCoordinationPlanTool;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.SubmitExecutorPlanTool;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.TakeOverTaskTool;
@@ -56,6 +57,7 @@ import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantDefinitionP
 import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantIdentityPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantProvisioningPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationRolePort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.DomainContextPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.EffectiveContextPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ExecutionProfileSnapshotPort;
@@ -118,8 +120,10 @@ public class AssistantInfrastructureAutoConfiguration {
             PersonaRepository personas,
             AiAssistantRoleRepository bindings,
             AiRoleRepository roles,
-            AiModelRepository models) {
-        return new JpaAssistantDefinitionAdapter(assistants, personas, bindings, roles, models);
+            AiModelRepository models,
+            com.xuejiai.aaf.framework.engine.tool.ToolCatalogProvider toolCatalog) {
+        return new JpaAssistantDefinitionAdapter(
+                assistants, personas, bindings, roles, models, toolCatalog);
     }
 
     @Bean
@@ -234,22 +238,20 @@ public class AssistantInfrastructureAutoConfiguration {
         return new RenderUiBlockTool();
     }
 
-    /**
-     * 非自主 L0 逻辑调用入口已迁移至 AgentScopeInfrastructureAutoConfiguration.promptInvocationGateway（依
-     * ADR-007），不再由本配置类基于 LlmClient 生产。
-     */
+    /** 轻量态 activate_role 的进程内切换登记，工具与 Assistant 收口共用同一实例（ADR-011）。 */
     @Bean
-    @ConditionalOnBean(PromptInvocationGateway.class)
-    @ConditionalOnMissingBean(RoleSelector.class)
-    RoleSelector modelRoleSelector(PromptInvocationGateway promptGateway) {
-        return new DefaultRoleSelector(promptGateway);
+    @ConditionalOnMissingBean(DirectRoleHandoffRegistry.class)
+    DirectRoleHandoffRegistry directRoleHandoffRegistry() {
+        return new DirectRoleHandoffRegistry();
     }
 
-    /** 无 LlmClient 时执行版本化默认 Role 安全策略，不创建模型调用或扩大候选。 */
     @Bean
-    @ConditionalOnMissingBean(RoleSelector.class)
-    RoleSelector roleSelector() {
-        return new DefaultRoleSelector();
+    @ConditionalOnMissingBean(ActivateRoleTool.class)
+    ActivateRoleTool activateRoleTool(
+            AssistantDefinitionPort definitions,
+            DirectRoleHandoffRegistry roleHandoffs,
+            ObjectProvider<ConversationRolePort> conversationRoles) {
+        return new ActivateRoleTool(definitions, roleHandoffs, conversationRoles);
     }
 
     @Bean
@@ -327,11 +329,11 @@ public class AssistantInfrastructureAutoConfiguration {
         AgentExecutionPort.class,
         EffectiveToolResolver.class,
         PromptAssembler.class,
-        RoleSelector.class,
         ExecutionProfileSnapshotPort.class,
         EffectiveSkillResolver.class,
         SystemSkillBindingPort.class,
         SkillCatalogPort.class,
+        SkillToolCatalogPort.class,
         EffectiveContextPort.class,
         MemoryContextPort.class,
         L1ContextPort.class,
@@ -348,9 +350,11 @@ public class AssistantInfrastructureAutoConfiguration {
             TaskUnitOfWork tasks,
             TaskMaterializationPort materializations,
             TaskPlanPort taskBoards,
-            RoleSelector roleSelector,
+            ObjectProvider<ConversationRolePort> conversationRoles,
+            DirectRoleHandoffRegistry roleHandoffs,
             SystemSkillBindingPort systemSkillBindings,
             SkillCatalogPort skillCatalog,
+            SkillToolCatalogPort skillTools,
             EffectiveSkillResolver effectiveSkillResolver,
             EffectiveToolResolver effectiveToolResolver,
             ToolVisibilityFilter toolVisibility,
@@ -374,9 +378,11 @@ public class AssistantInfrastructureAutoConfiguration {
                 tasks,
                 materializations,
                 taskBoards,
-                roleSelector,
+                conversationRoles,
+                roleHandoffs,
                 systemSkillBindings,
                 skillCatalog,
+                skillTools,
                 effectiveSkillResolver,
                 effectiveToolResolver,
                 toolVisibility,
@@ -445,6 +451,7 @@ public class AssistantInfrastructureAutoConfiguration {
             AgentExecutionPort agentExecutions,
             TaskDispatchSignalPort dispatchSignals,
             ArtifactCompletionEvaluator artifactCompletionEvaluator,
+            AssistantDefinitionPort definitions,
             Environment environment) {
         var leaseTtl =
                 Duration.ofSeconds(
@@ -466,6 +473,7 @@ public class AssistantInfrastructureAutoConfiguration {
                 agentExecutions,
                 dispatchSignals,
                 artifactCompletionEvaluator,
+                definitions,
                 Clock.systemUTC(),
                 leaseTtl,
                 pauseAckTimeout);
@@ -481,8 +489,11 @@ public class AssistantInfrastructureAutoConfiguration {
     @Bean
     @ConditionalOnBean(TaskCommandService.class)
     @ConditionalOnMissingBean(PromoteDirectTaskTool.class)
-    PromoteDirectTaskTool promoteDirectTaskTool(TaskCommandService taskCommands) {
-        return new PromoteDirectTaskTool(taskCommands);
+    PromoteDirectTaskTool promoteDirectTaskTool(
+            TaskCommandService taskCommands,
+            AssistantDefinitionPort definitions,
+            ObjectProvider<ConversationRolePort> conversationRoles) {
+        return new PromoteDirectTaskTool(taskCommands, definitions, conversationRoles);
     }
 
     @Bean

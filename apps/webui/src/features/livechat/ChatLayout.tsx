@@ -17,7 +17,6 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { useChatSessions, useCreateSession } from "@/lib/api/rest/ai"
 import { useResponsive } from "@/lib/hooks/use-responsive"
 import { AgentRunStatus } from "./components/AgentRunStatus"
-import { SelectedRoleBadge } from "./components/SelectedRoleBadge"
 import { SubTaskActivityList } from "./components/SubTaskActivityList"
 
 /** 会话列表侧边栏 */
@@ -105,7 +104,6 @@ export function ChatLayout({ drawer = false }: ChatLayoutProps) {
         </div>
         <div className="min-h-0 flex-1">
           <ThreadPrimitive.Root className="flex h-full flex-col">
-            <SelectedRoleBadge />
             <ThreadPrimitive.Viewport className="min-h-0 flex-1 overflow-y-auto p-4">
               <ThreadPrimitive.Messages>
                 {({ message }) => (
@@ -120,9 +118,9 @@ export function ChatLayout({ drawer = false }: ChatLayoutProps) {
                   </div>
                 )}
               </ThreadPrimitive.Messages>
+              <SubTaskActivityList />
+              <AgentRunStatus />
             </ThreadPrimitive.Viewport>
-            <SubTaskActivityList />
-            <AgentRunStatus />
             <ComposerPrimitive.Root className="border-t p-3">
               <ComposerPrimitive.Input
                 className="w-full resize-none rounded-md border bg-background px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus:ring-1 focus:ring-ring"
@@ -174,7 +172,6 @@ export function ChatLayout({ drawer = false }: ChatLayoutProps) {
             )}
             <div className="min-h-0 flex-1">
               <ThreadPrimitive.Root className="flex h-full flex-col">
-                <SelectedRoleBadge />
                 <ThreadPrimitive.Viewport className="min-h-0 flex-1 overflow-y-auto p-4">
                   <ThreadPrimitive.Messages>
                     {({ message }) => (
@@ -189,9 +186,9 @@ export function ChatLayout({ drawer = false }: ChatLayoutProps) {
                       </div>
                     )}
                   </ThreadPrimitive.Messages>
+                  <SubTaskActivityList />
+                  <AgentRunStatus />
                 </ThreadPrimitive.Viewport>
-                <SubTaskActivityList />
-                <AgentRunStatus />
                 <ComposerPrimitive.Root className="border-t p-3">
                   <ComposerPrimitive.Input
                     className="w-full resize-none rounded-md border bg-background px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus:ring-1 focus:ring-ring"

@@ -2,6 +2,7 @@ package com.xuejiai.aaf.module.ai.chat.service;
 
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -27,6 +28,7 @@ import com.xuejiai.aaf.module.chat.message.repository.ConversationMessageReposit
 import com.xuejiai.aaf.module.system.ErrorCodeConstants;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * 聊天服务，管理会话和消息。
@@ -35,6 +37,7 @@ import lombok.RequiredArgsConstructor;
  *
  * @author AaronZZH & Kiro
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ChatService {
@@ -116,8 +119,8 @@ public class ChatService {
     /**
      * 汇总当前轮次与对话累计的真实 AI 结算积分。
      *
-     * <p>持久 Task 下的协调者、步骤与子智能体共享 canonical taskId，因此自然合并为同一轮；当前 runId 额外加入查询，覆盖未提升为 Task
-     * 的直接对话。只统计已关联真实积分流水的 ai_usage_record，前端不得按 Token 估算。
+     * <p>按用户轮次归集：本轮取最近一条用户消息的 run，覆盖该 run 的直接对话、由它升级出的持久任务（协调者、步骤与子智能体共享
+     * taskId）及审批恢复后的执行。只统计已关联真实积分流水的 ai_usage_record，前端不得按 Token 估算。
      */
     @Transactional(readOnly = true)
     public ConversationCreditSummaryVO creditSummary(String threadId, String runId) {
@@ -131,23 +134,27 @@ public class ChatService {
             throw new IllegalStateException("对话积分汇总缺少组织上下文");
         }
         var conversation = conversationRepository.findByThreadId(threadId).orElseThrow();
-        var taskIds = new LinkedHashSet<String>();
-        messageRepository.findByConversationIdOrderByCreateTimeAsc(conversation.getId()).stream()
+        var messages =
+                messageRepository.findByConversationIdOrderByCreateTimeAsc(conversation.getId());
+        var runIds = new LinkedHashSet<String>();
+        messages.stream()
                 .map(ChatService::messageRunId)
                 .filter(java.util.Objects::nonNull)
-                .forEach(taskIds::add);
+                .forEach(runIds::add);
         var currentRunId = runId.trim();
-        taskIds.add(currentRunId);
-        var records =
-                usageRecords.findByTenantIdAndUserIdAndTaskIdInAndCreditTxIdIsNotNull(
-                        orgId.toString(), ownerId, taskIds);
+        runIds.add(currentRunId);
+        // 本轮以最近一条用户消息的 run 为准：审批恢复等后续 run 没有用户输入，其消耗归入发起它的用户轮次
+        var turnRunId =
+                messages.stream()
+                        .filter(message -> "user".equals(message.getRole()))
+                        .map(ChatService::messageRunId)
+                        .filter(java.util.Objects::nonNull)
+                        .reduce((first, second) -> second)
+                        .orElse(currentRunId);
+        var tenantId = orgId.toString();
         var turnCredits =
-                records.stream()
-                        .filter(record -> currentRunId.equals(record.getTaskId()))
-                        .mapToLong(record -> creditAmount(record.getCreditAmount()))
-                        .sum();
-        var conversationCredits =
-                records.stream().mapToLong(record -> creditAmount(record.getCreditAmount())).sum();
+                usageRecords.sumSettledCreditsByRunIds(tenantId, ownerId, Set.of(turnRunId));
+        var conversationCredits = usageRecords.sumSettledCreditsByRunIds(tenantId, ownerId, runIds);
         return new ConversationCreditSummaryVO(turnCredits, conversationCredits);
     }
 
@@ -164,10 +171,6 @@ public class ChatService {
         } catch (RuntimeException ignored) {
             return null;
         }
-    }
-
-    private static long creditAmount(Long value) {
-        return value == null ? 0L : value;
     }
 
     /**
@@ -192,6 +195,35 @@ public class ChatService {
             throw new BusinessException(ErrorCodeConstants.CHAT_SESSION_NOT_FOUND);
         }
         requireOwnedConversation(conversation.getId());
+    }
+
+    /**
+     * 记录对话起步角色（ADR-011）：对话里选角色不锁定，只写入会话当前角色，下一轮从该角色起步，协调者仍可自主切换。
+     *
+     * <p>调用方须已用 {@link #requireOwnedAiThread} 校验 threadId 归属；会话不存在或 roleKey 超过列长度时跳过。
+     */
+    @Transactional
+    public void rememberStartingRole(String threadId, String roleKey) {
+        if (threadId == null || threadId.isBlank() || roleKey == null || roleKey.isBlank()) {
+            return;
+        }
+        var normalized = roleKey.trim();
+        if (normalized.length() > 64) {
+            log.warn("[会话角色] 起步角色超过列长度，跳过记录：threadId={}，roleKey={}", threadId, normalized);
+            return;
+        }
+        conversationRepository
+                .findByThreadId(threadId)
+                .filter(conversation -> !normalized.equals(conversation.getAgentRole()))
+                .ifPresent(
+                        conversation -> {
+                            conversation.setAgentRole(normalized);
+                            conversationRepository.save(conversation);
+                            log.info(
+                                    "[会话角色] 已记录：conversationId={}，roleKey={}，来源=USER_SELECTED",
+                                    threadId,
+                                    normalized);
+                        });
     }
 
     /**
@@ -568,6 +600,7 @@ public class ChatService {
                 conv.getStatus() != null ? conv.getStatus().name() : null,
                 conv.getCreatorId(),
                 conv.getThreadId(),
+                conv.getAgentRole(),
                 conv.getCreateTime(),
                 conv.getUpdateTime());
     }

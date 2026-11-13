@@ -147,8 +147,9 @@ public final class SubmitCoordinationPlanTool implements ContextAwareToolHandler
                                 "type",
                                 "array",
                                 "description",
-                                "执行者列表。roleKey/skillKey 可选，省略即与协调者相同；指定其它值必须属于 Assistant "
-                                        + "已发布的候选目录且不扩大授权，越权会被拒绝并返回候选目录",
+                                "执行者列表。roleKey 可选，省略即与协调者相同，可从角色目录中为执行者选择任一已发布角色；"
+                                        + "skillKey 可选，省略时同角色继承协调者技能、换角色则由执行者按需加载；"
+                                        + "指定的角色或技能不在助理候选目录会被拒绝并返回候选目录",
                                 "items",
                                 Map.of(
                                         "type",
@@ -180,13 +181,13 @@ public final class SubmitCoordinationPlanTool implements ContextAwareToolHandler
                                                         "type",
                                                         "string",
                                                         "description",
-                                                        "可选，默认继承协调者"),
+                                                        "可选，执行者角色，取自角色目录；默认继承协调者"),
                                                 "skillKey",
                                                 Map.of(
                                                         "type",
                                                         "string",
                                                         "description",
-                                                        "可选，默认继承协调者"),
+                                                        "可选，须属于该角色的候选技能；省略时同角色继承协调者，换角色则按需加载"),
                                                 "dependsOn",
                                                 Map.of(
                                                         "type",
@@ -304,9 +305,14 @@ public final class SubmitCoordinationPlanTool implements ContextAwareToolHandler
                     throw new IllegalArgumentException("Team 协调计划不能改变或跳过冻结 Worker");
                 }
             } else {
-                // 省略 roleKey / skillKey 表示与协调者相同；指定其它值必须属于候选目录且不扩大授权
+                // 省略 roleKey 表示与协调者相同；省略 skillKey 时同角色继承协调者技能（可为空），
+                // 换角色则不预置技能，执行者以 SELECT_AND_AUGMENT 按需加载（ADR-011）
                 roleKey = optionalText(node, "roleKey", baselineRoleKey);
-                skillKey = optionalText(node, "skillKey", baselineSkillKey);
+                var rawSkillKey = node.get("skillKey");
+                skillKey =
+                        rawSkillKey == null
+                                ? (roleKey.equals(baselineRoleKey) ? baselineSkillKey : null)
+                                : requireString(rawSkillKey, "skillKey");
                 requireDelegable(context, baselineRoleKey, baselineSkillKey, roleKey, skillKey);
             }
             var modelMode = requireStringField(node, "modelMode");
@@ -368,6 +374,19 @@ public final class SubmitCoordinationPlanTool implements ContextAwareToolHandler
                         iterationGroup);
 
         boards.applyTaskPlanDraft(context.tenantId(), context.taskId(), plan, context.lease());
+        log.info(
+                "[协调委派] 计划已接收：taskId={}，执行者数={}，执行者角色={}",
+                context.taskId().value(),
+                assignments.size(),
+                assignments.stream()
+                        .map(
+                                assignment ->
+                                        assignment.nodeId()
+                                                + ":"
+                                                + assignment.roleKey()
+                                                + "/"
+                                                + assignment.skillKey())
+                        .toList());
 
         var values = new LinkedHashMap<String, Object>();
         values.put("executorCount", assignments.size());
@@ -384,9 +403,9 @@ public final class SubmitCoordinationPlanTool implements ContextAwareToolHandler
     }
 
     /**
-     * 执行者 Role/Skill 的委派校验：与协调者相同直接通过；不同则必须属于 Assistant 已发布的候选目录（该 Role 的 ON_DEMAND 技能），且不扩大授权——执行者
-     * Role 的候选工具集必须是协调者 Role 候选工具集的子集。技能的有效工具再与所属 Role 的工具 白名单求交集，因此 Role
-     * 工具集不扩大即保证技能不会带入基准之外的工具。无法读取 Assistant 定义时视为无法确认候选目录，拒绝。
+     * 执行者 Role/Skill 的委派校验（ADR-011 助理级授权基线）：与协调者相同直接通过；不同则 Role 必须属于 Assistant 已发布角色目录， 给出的技能必须属于该
+     * Role 的 ON_DEMAND 候选。不再要求执行者工具集是协调者子集——防提权由执行者只拿自身角色工具、 ToolPolicy、用户功能权限与 ToolGateway
+     * 授权共同承担。无法读取 Assistant 定义时视为无法确认候选目录，拒绝。
      */
     private void requireDelegable(
             InvocationContext context,
@@ -401,34 +420,19 @@ public final class SubmitCoordinationPlanTool implements ContextAwareToolHandler
                 definitions
                         .findById(context.tenantId(), context.assistantId())
                         .orElseThrow(
-                                () ->
-                                        new IllegalArgumentException(
-                                                "协调者不能更改已冻结的 Role 或 Skill：无法读取 Assistant 定义以确认候选目录"));
-        final Role baseline;
+                                () -> new IllegalArgumentException("无法读取 Assistant 定义以确认执行者角色目录"));
         final Role role;
         try {
-            baseline = definition.requireRole(baselineRoleKey);
             role = definition.requireRole(roleKey);
         } catch (IllegalArgumentException failure) {
             throw new IllegalArgumentException(
-                    "协调者不能更改已冻结的 Role 或 Skill：Role 不在候选目录，候选：" + catalog(definition), failure);
+                    "执行者 Role 不在助理角色目录：" + roleKey + "，候选：" + catalog(definition), failure);
         }
-        if (skillKey == null || !definition.candidateOnDemandSkillKeys(role).contains(skillKey)) {
+        if (skillKey != null && !definition.candidateOnDemandSkillKeys(role).contains(skillKey)) {
             throw new IllegalArgumentException(
-                    "协调者不能更改已冻结的 Role 或 Skill：Skill 不在 Role "
+                    "执行者 Skill 不在 Role "
                             + roleKey
-                            + " 的候选目录，候选："
-                            + catalog(definition));
-        }
-        if (!definition
-                .candidateToolKeys(baseline)
-                .containsAll(definition.candidateToolKeys(role))) {
-            throw new IllegalArgumentException(
-                    "执行者 Role "
-                            + roleKey
-                            + " 的工具集超出协调者 Role "
-                            + baselineRoleKey
-                            + "，不允许扩大授权，候选："
+                            + " 的候选目录，可省略 skillKey 由执行者按需加载，候选："
                             + catalog(definition));
         }
     }

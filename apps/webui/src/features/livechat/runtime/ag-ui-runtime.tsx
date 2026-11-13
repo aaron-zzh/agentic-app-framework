@@ -179,6 +179,9 @@ const PROMOTION_SHAPE_MESSAGES: Record<string, string> = {
   DELEGATE: "已转为任务，由多个角色分工协作"
 }
 
+/** `aaf.task.promoted` 的 trigger=TOOL_GATE（需授权工具触发网关自动升级）时的提示。 */
+const TOOL_GATE_PROMOTION_MESSAGE = "该操作需要你审批，已转为任务"
+
 /** 判断未知值是否为普通对象。 */
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
@@ -313,7 +316,7 @@ function toThreadMessages(messages: ChatMessageVO[]): ThreadMessage[] {
     id: String(message.id),
     role: message.role === "user" ? ("user" as const) : ("assistant" as const),
     content: [{ type: "text" as const, text: message.content }],
-    createdAt: new Date(message.createdAt),
+    createdAt: new Date(message.createTime),
     ...(message.role !== "user" && {
       status: { type: "complete" as const, reason: "stop" as const }
     }),
@@ -515,13 +518,19 @@ export function AgUiChatProvider({
           const value = event.value as AafAiTaskEvent | undefined
           const shape = value?.data.shape
           const promotedRoleKey = value?.data.roleKey
+          const trigger = value?.data.trigger
+          const pendingToolName = value?.data.pendingToolName
           const shapeMessage =
             typeof shape === "string" ? PROMOTION_SHAPE_MESSAGES[shape] : undefined
+          // 网关自动升级（轻量态调用需授权工具）使用审批提示文案，模型主动升级保持原文案
+          const toolGate = trigger === "TOOL_GATE"
           run.pushEntry({
             type: "TASK_PROMOTED",
             title: "转为任务",
-            message: shapeMessage ?? "已转为任务",
+            message: toolGate ? TOOL_GATE_PROMOTION_MESSAGE : (shapeMessage ?? "已转为任务"),
             roleKey: typeof promotedRoleKey === "string" ? promotedRoleKey : undefined,
+            trigger: typeof trigger === "string" ? trigger : undefined,
+            toolName: toolGate && typeof pendingToolName === "string" ? pendingToolName : undefined,
             timestamp: Date.now()
           })
           void queryClient.invalidateQueries({ queryKey: taskKeys.all })
@@ -546,6 +555,7 @@ export function AgUiChatProvider({
                   ? `已切换到 ${toRoleName}：${reason}`
                   : `已切换到 ${toRoleName}`,
               roleKey: toRoleKey,
+              roleName: toRoleName,
               timestamp: Date.now()
             })
             run.setSelectedRole({

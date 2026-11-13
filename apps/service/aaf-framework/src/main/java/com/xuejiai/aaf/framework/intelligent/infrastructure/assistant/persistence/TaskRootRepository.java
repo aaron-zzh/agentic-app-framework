@@ -73,6 +73,27 @@ public interface TaskRootRepository extends JpaRepository<TaskRootEntity, Long> 
                 Long.valueOf(tenantId), userId, source, releasedStatuses);
     }
 
+    /** 当前用户跨会话的未终结 Task，按更新时间倒序；供首页看板（ADR-011）。 */
+    @Query(
+            """
+            select t from TaskRootEntity t
+            where t.orgId = :orgId
+              and t.userId = :userId
+              and t.status not in :terminalStatuses
+            order by t.updatedAt desc, t.id desc
+            """)
+    List<TaskRootEntity> findActiveByOrgIdAndUserId(
+            Long orgId, String userId, Collection<String> terminalStatuses, Pageable pageable);
+
+    default List<TaskRootEntity> findActiveByUser(
+            String tenantId,
+            String userId,
+            Collection<String> terminalStatuses,
+            Pageable pageable) {
+        return findActiveByOrgIdAndUserId(
+                Long.valueOf(tenantId), userId, terminalStatuses, pageable);
+    }
+
     default Optional<TaskRootEntity> findForUpdate(String tenantId, String taskId) {
         return findForUpdateByOrgId(Long.valueOf(tenantId), taskId);
     }

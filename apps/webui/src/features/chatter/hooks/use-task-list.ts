@@ -66,6 +66,8 @@ export function useTaskList(conversationId: string | undefined): UseTaskListRetu
     const taskId = event.payload.taskId
     if (typeof taskId === "string") {
       void queryClient.invalidateQueries({ queryKey: taskKeys.detail(taskId) })
+      // 授权请求/决议事件到达时同步刷新审批列表，审批卡不必等下一轮轮询
+      void queryClient.invalidateQueries({ queryKey: taskKeys.approvals(taskId) })
     }
   })
 

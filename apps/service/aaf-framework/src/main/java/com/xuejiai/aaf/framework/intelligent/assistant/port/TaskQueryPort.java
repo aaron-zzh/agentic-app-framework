@@ -16,6 +16,9 @@ public interface TaskQueryPort {
 
     List<TaskDetails> list(TenantId tenantId, UserId userId, ConversationId conversationId);
 
+    /** 当前用户跨会话的未终结 Task，按更新时间倒序，最多 {@code limit} 条；供首页看板。 */
+    List<TaskDetails> listActive(TenantId tenantId, UserId userId, int limit);
+
     /**
      * 统计该归属者占用并发名额且由指定来源创建的 canonical Task 数量。
      *

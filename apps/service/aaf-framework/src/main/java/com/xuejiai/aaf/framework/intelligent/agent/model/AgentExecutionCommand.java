@@ -17,7 +17,33 @@ public record AgentExecutionCommand(
         long sequenceBase,
         List<AgentMessage> messages,
         InvocationContext context,
-        boolean resumeStateRequired) {
+        boolean resumeStateRequired,
+        PendingToolCall seededToolCall) {
+
+    public AgentExecutionCommand(
+            SubagentSpec subagentSpec,
+            Optional<RoleAssignment> roleAssignment,
+            ExecutionMode executionMode,
+            Optional<ModelSpec> executionModel,
+            SkillExecutionProfile skillExecutionProfile,
+            CompiledSystemPrompt compiledSystemPrompt,
+            long sequenceBase,
+            List<AgentMessage> messages,
+            InvocationContext context,
+            boolean resumeStateRequired) {
+        this(
+                subagentSpec,
+                roleAssignment,
+                executionMode,
+                executionModel,
+                skillExecutionProfile,
+                compiledSystemPrompt,
+                sequenceBase,
+                messages,
+                context,
+                resumeStateRequired,
+                null);
+    }
 
     public AgentExecutionCommand(
             SubagentSpec subagentSpec,
@@ -39,7 +65,8 @@ public record AgentExecutionCommand(
                 sequenceBase,
                 messages,
                 context,
-                false);
+                false,
+                null);
     }
 
     public AgentExecutionCommand {
@@ -60,6 +87,10 @@ public record AgentExecutionCommand(
         if (messages.stream().anyMatch(message -> message.role() == AgentMessage.Role.SYSTEM)) {
             throw new IllegalArgumentException(
                     "Agent messages 禁止追加 SYSTEM；SYSTEM 只能来自 CompiledSystemPrompt");
+        }
+        // 协调者首轮重放的待执行调用只用于全新 attempt；same-attempt 恢复由已保存状态中的挂起调用承接
+        if (seededToolCall != null && resumeStateRequired) {
+            throw new IllegalArgumentException("seededToolCall 与 resumeStateRequired 互斥");
         }
     }
 

@@ -416,8 +416,10 @@ public record Task(
             ownerAssistantId = requireText(ownerAssistantId, "ownerAssistantId");
             planId = requireText(planId, "planId");
             sourceNodeId = requireText(sourceNodeId, "sourceNodeId");
-            if (!"aggregator".equals(sourceNodeId)) {
-                throw new IllegalArgumentException("RootResult sourceNodeId 必须是 aggregator");
+            // 交付节点只有两种：正式计划的聚合者，或"仅协调者"计划里直答的协调者（ADR-008）
+            if (!"aggregator".equals(sourceNodeId) && !"coordinator".equals(sourceNodeId)) {
+                throw new IllegalArgumentException(
+                        "RootResult sourceNodeId 必须是 aggregator 或 coordinator");
             }
             Objects.requireNonNull(executionId, "executionId 不能为空");
             dispatchId = requireText(dispatchId, "dispatchId");

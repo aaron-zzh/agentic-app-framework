@@ -8,6 +8,7 @@ import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import com.xuejiai.aaf.framework.intelligent.ai.chat.AiProperties;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ControlMode;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ExecutionEventStatus;
@@ -42,7 +43,8 @@ class AgUiProjectorTest {
     private static final String EXECUTION_ID = "execution-1";
     private static final AguiEventEncoder ENCODER = new AguiEventEncoder();
 
-    private final AgUiProjector projector = new AgUiProjector(new ExecutionEventPublicMapper());
+    private final AgUiProjector projector =
+            new AgUiProjector(new ExecutionEventPublicMapper(), new AiProperties());
 
     @Test
     @DisplayName("RUN_STARTED 携带 threadId 与 runId，且 type 仅出现一次")

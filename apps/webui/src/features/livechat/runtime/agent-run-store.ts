@@ -14,6 +14,12 @@ export interface AgentRunEntry {
   message?: string
   /** 与该记录相关的角色（角色切换的目标角色、升级后任务的协调者角色） */
   roleKey?: string
+  /** 角色名，取自服务端事件载荷（如 aaf.role.switched 的 toRoleName） */
+  roleName?: string
+  /** 升级触发方式，取自 aaf.task.promoted 的 trigger：MODEL 模型主动 / TOOL_GATE 网关自动 */
+  trigger?: string
+  /** 触发自动升级的工具名，取自 aaf.task.promoted 的 pendingToolName */
+  toolName?: string
   timestamp: number
 }
 

@@ -19,9 +19,12 @@ import java.util.concurrent.atomic.AtomicReference;
 import com.xuejiai.aaf.framework.intelligent.agent.model.AgentExecutionCommand;
 import com.xuejiai.aaf.framework.intelligent.agent.model.AgentMessage;
 import com.xuejiai.aaf.framework.intelligent.agent.model.ExecutionPolicy;
+import com.xuejiai.aaf.framework.intelligent.agent.model.PendingToolCall;
 import com.xuejiai.aaf.framework.intelligent.agent.model.SubagentSpec;
 import com.xuejiai.aaf.framework.intelligent.agent.port.AgentDefinitionPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.AgentExecutionPort;
+import com.xuejiai.aaf.framework.intelligent.agent.port.ToolGatewayPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.application.RequestClarificationTool;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskUnitOfWork;
 import com.xuejiai.aaf.framework.intelligent.cognition.model.ContextBudgetExceededException;
@@ -54,8 +57,15 @@ import io.agentscope.core.agent.RuntimeContext;
 import io.agentscope.core.event.AgentEvent;
 import io.agentscope.core.event.AgentEventType;
 import io.agentscope.core.event.ToolResultEndEvent;
+import io.agentscope.core.message.Msg;
+import io.agentscope.core.message.MsgRole;
+import io.agentscope.core.message.TextBlock;
+import io.agentscope.core.message.ToolResultBlock;
 import io.agentscope.core.message.ToolResultState;
+import io.agentscope.core.message.ToolUseBlock;
 import io.agentscope.core.state.AgentState;
+import io.agentscope.core.util.JsonUtils;
+import io.agentscope.core.util.MessageUtils;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -440,7 +450,11 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
                                     stateUserKey,
                                     command.context().sessionId().value(),
                                     command.context()));
-            requireNoHiddenPersistentHistory(command, stateUserKey);
+            var restoredState = requireNoHiddenPersistentHistory(command, stateUserKey);
+            var agentInput =
+                    command.seededToolCall() == null
+                            ? resumeInput(command, restoredState, execution.agent())
+                            : seedPendingToolCall(command, execution.agent(), stateUserKey);
             active.stateAccessReady().set(true);
             log.debug(
                     "[AgentLoop] 已注册活跃执行并订阅 Harness 事件流：executionId={}，agent={}，临时实例={}",
@@ -453,7 +467,7 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
             var mainTerminated = Sinks.<ExecutionEvent>one();
             return execution
                     .agent()
-                    .streamEvents(messageMapper.toAgentScope(command.messages()), runtimeContext)
+                    .streamEvents(agentInput, runtimeContext)
                     // 每个源事件：边界事件校验租约与任务 → 记录启动态 → 计量 token。
                     // 已原子提交的 canonical HITL 挂起先读取并核验 exact event，再保存 AgentState；
                     // 只有这一条事件可绕过已关闭 Dispatch 的 current 校验并直接回送当前 run。
@@ -478,8 +492,12 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
                                                 mappingState));
                             })
                     .doOnNext(event -> preserveHitlState(event, active, command, stateUserKey))
-                    // canonical waiting event 已完成控制权交接；旧 Dispatch 的尾随 Agent 事件不得继续进入映射/持久化
-                    .takeUntil(HarnessAgentExecutionAdapter::canonicalWait)
+                    // canonical waiting event 已完成控制权交接；旧 Dispatch 的尾随 Agent 事件不得继续进入映射/持久化。
+                    // 轻量态控制交接（activate_role / promote_to_task 成功返回）同样立即结束本轮循环，不再让模型继续输出（ADR-011）
+                    .takeUntil(
+                            event ->
+                                    canonicalWait(event)
+                                            || HarnessAgentExecutionAdapter.controlHandoff(event))
                     // 事件静默超时：只约束相邻已映射事件之间的间隔，识别"连接未断但模型卡住"
                     .timeout(policy.idleTimeout())
                     .doOnComplete(mainTerminated::tryEmitEmpty)
@@ -560,9 +578,32 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
                                         .remove(event.eventId().value())) {
                                     return Mono.just(event);
                                 }
-                                return eventStore
-                                        .append(event, command.context().lease())
-                                        .timeout(policy.persistTimeout());
+                                // 入口检查与落库之间可能恰好提交了 HITL 并关闭原 Dispatch：
+                                // 此时尾随事件与 prepareSourceEvent 中同类事件一样直接丢弃，否则落库必因缺 active dispatch 失败
+                                if (evidenceStore.hasCommittedInterrupt(
+                                        command.context().executionId())) {
+                                    return Mono.empty();
+                                }
+                                return Mono.defer(
+                                                () ->
+                                                        eventStore.append(
+                                                                event, command.context().lease()))
+                                        .timeout(policy.persistTimeout())
+                                        // 证据由工具包装层在网关提交 HITL 之后才记录，上面的检查仍有窗口：
+                                        // 原 Dispatch 已随 HITL 事务关闭时，以已落库的 canonical 等待事件为准丢弃尾随事件
+                                        .onErrorResume(
+                                                TaskUnitOfWork.StaleExecutionException.class,
+                                                failure ->
+                                                        committedWaitPersisted(command)
+                                                                .flatMap(
+                                                                        committed ->
+                                                                                committed
+                                                                                        ? Mono
+                                                                                                .<ExecutionEvent>
+                                                                                                        empty()
+                                                                                        : Mono
+                                                                                                .error(
+                                                                                                        failure)));
                             })
                     .doFinally(ignored -> release(executionId, active, command, stateUserKey));
         } catch (RuntimeException failure) {
@@ -578,6 +619,13 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
             ResolvedExecution execution,
             String stateUserKey) {
         var interrupt = committedInterruptEvidence(event, command);
+        // 授权/澄清已原子提交并关闭原 Dispatch：在携带该等待的 TOOL_RESULT_END 回送之前，
+        // 其余尾随事件（工具结果 START/DELTA、并行工具、模型事件等）既无法通过 active dispatch 校验落库，
+        // 也不携带新语义（END 会回送已提交的 canonical 事件并保存状态），直接丢弃
+        if (interrupt.isEmpty()
+                && evidenceStore.hasCommittedInterrupt(command.context().executionId())) {
+            return Mono.empty();
+        }
         if (interrupt.isPresent()) {
             var committed = interrupt.orElseThrow();
             return loadCommittedInterruptEvent(command, committed)
@@ -613,7 +661,18 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
                             meteringObserver.observe(event, execution.model(), command);
                             return new SourceEventReceipt(event, null);
                         })
-                .subscribeOn(blockingScheduler);
+                .subscribeOn(blockingScheduler)
+                // 网关已提交 HITL 并关闭原 Dispatch、但工具包装层尚未记录证据的窗口内，尾随边界事件（如 MODEL_CALL_END）
+                // 会被 requireCurrent 判为 stale；以已落库的 canonical 等待事件为准丢弃，等待 TOOL_RESULT_END 回送等待事件
+                .onErrorResume(
+                        TaskUnitOfWork.StaleExecutionException.class,
+                        failure ->
+                                committedWaitPersisted(command)
+                                        .flatMap(
+                                                committed ->
+                                                        committed
+                                                                ? Mono.<SourceEventReceipt>empty()
+                                                                : Mono.error(failure)));
     }
 
     private Optional<CommittedInterruptEvidence> committedInterruptEvidence(
@@ -658,6 +717,14 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
                             evidence));
         }
         return Optional.empty();
+    }
+
+    /** 本执行是否已有随 HITL 事务落库的 canonical 等待事件（授权/澄清），即原 Dispatch 已正常交出控制权。 */
+    private Mono<Boolean> committedWaitPersisted(AgentExecutionCommand command) {
+        var context = command.context();
+        return eventStore
+                .readExecution(context.tenantId(), context.executionId(), command.sequenceBase())
+                .any(HarnessAgentExecutionAdapter::canonicalWait);
     }
 
     private Mono<ExecutionEvent> loadCommittedInterruptEvent(
@@ -712,6 +779,14 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
                                         ""))) {
             throw new IllegalStateException("已持久化 canonical interrupt 与当前 tool/execution 身份不一致");
         }
+    }
+
+    /** 轻量态控制交接：工具证据带控制交接标记（自动升级、切换角色、显式升级），当前执行由 Assistant 收口后续接或转任务事件流。 */
+    private static boolean controlHandoff(ExecutionEvent event) {
+        return event.type() == ExecutionEventType.TOOL_CALL_COMPLETED
+                && event.taskId() == null
+                && Boolean.TRUE.equals(
+                        event.payload().values().get(ToolGatewayPort.CONTROL_HANDOFF_KEY));
     }
 
     private static boolean canonicalWait(ExecutionEvent event) {
@@ -849,8 +924,8 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
                 .flux();
     }
 
-    /** AgentScope 会先恢复 agent_state 再追加 command messages；隐藏历史未纳入冻结画像时必须拒绝。 */
-    private void requireNoHiddenPersistentHistory(
+    /** AgentScope 会先恢复 agent_state 再追加 command messages；隐藏历史未纳入冻结画像时必须拒绝。返回已恢复状态（如有）。 */
+    private Optional<AgentState> requireNoHiddenPersistentHistory(
             AgentExecutionCommand command, String stateUserKey) {
         var context = command.context();
         final java.util.Optional<AgentState> state;
@@ -869,15 +944,136 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
                 throw new ContextBudgetExceededException(
                         "same-attempt resume 缺少预期 AgentScope 状态，拒绝静默降级 fresh attempt");
             }
-            return;
+            return state;
         }
         var persisted = state.orElseThrow();
         if (command.resumeStateRequired()) {
-            return;
+            return state;
         }
         if (!persisted.getContext().isEmpty() || !persisted.getSummary().isBlank()) {
             throw new ContextBudgetExceededException("检测到未纳入冻结画像的 AgentScope 持久历史，拒绝进入模型");
         }
+        return state;
+    }
+
+    /**
+     * 计算本次调用交给 AgentScope 的输入。
+     *
+     * <p>HITL 挂起后的 same-attempt resume：恢复的状态里留有无结果的挂起工具调用，core 只接受空输入（重新执行挂起调用） 或与挂起调用 id
+     * 一一对应的工具结果消息，重发用户消息会被拒绝。
+     *
+     * <ul>
+     *   <li>授权类挂起：传空输入，core 经 Toolkit → PortBackedAgentTool → 网关重新执行。已批准时网关命中授权直接执行； 已拒绝时网关
+     *       priorRejection 返回拒绝原因，工具以失败结果回给模型
+     *   <li>澄清挂起：不能重执行（会再生成一份澄清请求），以恢复输入（已含补齐参数）作为 {@code request_clarification} 的成功结果回填
+     * </ul>
+     *
+     * 其余情况（非恢复、无挂起调用）保持原有行为，传入冻结画像的消息。
+     */
+    private List<Msg> resumeInput(
+            AgentExecutionCommand command, Optional<AgentState> restoredState, ReActAgent agent) {
+        var original = messageMapper.toAgentScope(command.messages());
+        if (!command.resumeStateRequired() || restoredState.isEmpty()) {
+            return original;
+        }
+        var pending =
+                MessageUtils.extractPendingToolCalls(
+                        restoredState.orElseThrow().getContext(), agent.getName());
+        if (pending.isEmpty()) {
+            return original;
+        }
+        var clarifications =
+                pending.stream()
+                        .filter(call -> RequestClarificationTool.TOOL_NAME.equals(call.getName()))
+                        .toList();
+        if (clarifications.isEmpty()) {
+            log.debug(
+                    "[AgentLoop] same-attempt resume 重新执行挂起工具调用：executionId={}，工具={}",
+                    command.context().executionId().value(),
+                    pending.stream().map(call -> call.getName()).toList());
+            return List.of();
+        }
+        if (clarifications.size() != pending.size()) {
+            throw new IllegalStateException("澄清挂起与其他挂起工具调用并存，无法确定恢复输入");
+        }
+        var answer = "用户已补充：\n" + resumeUserText(command);
+        var results =
+                clarifications.stream()
+                        .map(
+                                call ->
+                                        (io.agentscope.core.message.ContentBlock)
+                                                ToolResultBlock.builder()
+                                                        .id(call.getId())
+                                                        .name(call.getName())
+                                                        .output(
+                                                                TextBlock.builder()
+                                                                        .text(answer)
+                                                                        .build())
+                                                        .state(ToolResultState.SUCCESS)
+                                                        .build())
+                        .toList();
+        log.debug(
+                "[AgentLoop] same-attempt resume 回填澄清结果：executionId={}，调用数={}",
+                command.context().executionId().value(),
+                results.size());
+        return List.of(Msg.builder().role(MsgRole.TOOL).content(results).build());
+    }
+
+    /**
+     * 协调者首轮重放轻量态携带的待执行调用（AAF-128）：把冻结消息与一条合成的 assistant tool_use 写入调用作用域状态，以空输入启动。
+     *
+     * <p>与 same-attempt 恢复同一路径：core 每次调用开始时从状态存储重载 AgentState，识别到"有 tool_use、无 tool_result"
+     * 的挂起调用且输入为空时直接进入 acting，经 Toolkit → PortBackedAgentTool → 网关执行，首轮不调用模型。tool_use 的 {@code
+     * content} 必须是参数 JSON，core 按它做 schema 校验。
+     */
+    private List<Msg> seedPendingToolCall(
+            AgentExecutionCommand command, ReActAgent agent, String stateUserKey) {
+        var call = command.seededToolCall();
+        call.requireDigest(PendingToolCall.digestOf(call.toolId(), call.arguments()));
+        var sessionId = command.context().sessionId().value();
+        var state = agent.getAgentState(stateUserKey, sessionId);
+        if (!state.getContext().isEmpty()) {
+            throw new IllegalStateException("重放待执行调用前 AgentState 必须为空");
+        }
+        var toolUse =
+                ToolUseBlock.builder()
+                        .id(call.toolCallId())
+                        .name(call.toolName())
+                        .input(call.arguments())
+                        .content(JsonUtils.getJsonCodec().toJson(call.arguments()))
+                        .build();
+        state.contextMutable().addAll(messageMapper.toAgentScope(command.messages()));
+        state.contextMutable()
+                .add(
+                        Msg.builder()
+                                .role(MsgRole.ASSISTANT)
+                                .name(agent.getName())
+                                .content(toolUse)
+                                .build());
+        stateStore.save(stateUserKey, sessionId, "agent_state", state);
+        var pending = MessageUtils.extractPendingToolCalls(state.getContext(), agent.getName());
+        if (pending.size() != 1 || !call.toolCallId().equals(pending.getFirst().getId())) {
+            throw new IllegalStateException("合成的待执行调用未被识别为挂起调用: " + call.toolCallId());
+        }
+        log.info(
+                "[任务升级] 协调者首轮重放待执行调用：executionId={}，taskId={}，tool={}，toolCallId={}",
+                command.context().executionId().value(),
+                command.context().taskId() == null ? null : command.context().taskId().value(),
+                call.toolName(),
+                call.toolCallId());
+        return List.of();
+    }
+
+    /** 恢复命令中最后一条用户消息的文本：materialize 时已由 resolveInput 拼入补齐参数。 */
+    private static String resumeUserText(AgentExecutionCommand command) {
+        var messages = command.messages();
+        for (var index = messages.size() - 1; index >= 0; index--) {
+            var message = messages.get(index);
+            if (message.role() == AgentMessage.Role.USER) {
+                return message.text();
+            }
+        }
+        return "";
     }
 
     /**

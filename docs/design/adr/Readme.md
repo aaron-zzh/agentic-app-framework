@@ -15,6 +15,7 @@ gains:
   - 添加新决策时有可对齐的 MADR 格式模板
   - 硬约束规则回链到决策起因（multica P1.5 规则溯源）
 changelog:
+  - 2026-11-11 登记 ADR-011
   - 2026-11-08 登记 ADR-010
   - 2026-10-14 登记 ADR-009
   - 2026-10-11 登记 ADR-008
@@ -53,6 +54,7 @@ changelog:
 | [ADR-008](ADR-008-task-execution-shape-and-streaming.md) | Task 执行形态、产物保存边界与全环节流式可视化 | proposed | 协调者直答与交付节点、分解策略、产物保存、ExecutionLiveEventPort、SSE 结束条件、AAF-107 / AAF-115 |
 | [ADR-009](ADR-009-realtime-channel-convergence.md) | 实时通道收敛为 WebSocket、全局事件 SSE 与 AG-UI Run SSE | accepted | 全局事件表与发布入口、SseSessionManager 传输层、通知推送策略、前端 lib/realtime、AAF-119 |
 | [ADR-010](ADR-010-realtime-voice-omni-with-assistant-delegation.md) | 实时语音统一走 Omni Realtime，需要工具时委托助理执行 | proposed | Web 电话图标与设备端实时对话、Omni 会话的委托工具、`cascade v3` 去留、AAF-120 |
+| [ADR-011](ADR-011-assistant-single-entry-and-on-demand-role.md) | 助理单入口、双容器与协调者按需加载角色 | proposed | TaskAnalysisPolicy 硬门、TASK 自动路由、`activate_role`、`promote_to_task` 入参、委派授权基线、删除 L0 角色选择 |
 
 ## 与其他文档的关系
 

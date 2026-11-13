@@ -5,10 +5,12 @@ import java.util.Objects;
 
 import org.springframework.stereotype.Component;
 
+import com.xuejiai.aaf.framework.intelligent.ai.chat.AiProperties;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent;
 import com.xuejiai.aaf.framework.intelligent.shared.event.publication.ExecutionEventPublicMapper;
 import com.xuejiai.aaf.module.ai.agui.converter.InternalNodeEventConverter;
 import com.xuejiai.aaf.module.ai.agui.converter.PublicEventFallbackConverter;
+import com.xuejiai.aaf.module.ai.agui.converter.ReasoningMessageEventConverter;
 import com.xuejiai.aaf.module.ai.agui.converter.RunLifecycleEventConverter;
 import com.xuejiai.aaf.module.ai.agui.converter.StepEventConverter;
 import com.xuejiai.aaf.module.ai.agui.converter.TextMessageEventConverter;
@@ -33,13 +35,17 @@ public final class AgUiProjector {
 
     private final AafAguiConverterRegistry registry;
 
-    public AgUiProjector(ExecutionEventPublicMapper publicMapper) {
+    public AgUiProjector(ExecutionEventPublicMapper publicMapper, AiProperties aiProperties) {
         Objects.requireNonNull(publicMapper, "publicMapper 不能为空");
+        Objects.requireNonNull(aiProperties, "aiProperties 不能为空");
         this.registry =
                 new AafAguiConverterRegistry(
                         List.of(
                                 new RunLifecycleEventConverter(),
                                 new TextMessageEventConverter(),
+                                new ReasoningMessageEventConverter(
+                                        Boolean.TRUE.equals(
+                                                aiProperties.getReasoning().getEnabled())),
                                 new StepEventConverter()),
                         new PublicEventFallbackConverter(publicMapper),
                         new InternalNodeEventConverter(publicMapper));
@@ -88,6 +94,14 @@ public final class AgUiProjector {
         /** 流结束时兜底：补齐未闭合的 message 与 tool call，并确保 run 已终结。 */
         public List<AguiEvent> close(String threadId, String runId) {
             return context(threadId, runId).close();
+        }
+
+        /**
+         * 显式开启 run：审批/澄清恢复流续读的是任务节点事件，不含 {@code EXECUTION_STARTED}，AG-UI 要求每个 run 以 RUN_STARTED
+         * 开头，必须在投影任何事件前调用；幂等，后续到达的 EXECUTION_STARTED 不会重复发出。
+         */
+        public List<AguiEvent> start(String threadId, String runId) {
+            return context(threadId, runId).runStarted();
         }
 
         /** 异常路径：发 RUN_ERROR 并闭合 run；AG-UI 要求 run 必须终结。 */
