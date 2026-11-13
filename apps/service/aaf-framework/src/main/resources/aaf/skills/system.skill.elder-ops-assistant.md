@@ -6,9 +6,9 @@ version: 1
 visibility: INTERNAL
 toolAccessMode: RESTRICT
 changeSummary: AAF-120 运营助手初始版本
-tool: queryAlertStatus | 100 | 查询最近预警与认领、知晓、结案状态
-tool: queryDeviceStatus | 110 | 查询设备在线、心跳、摄像头和隐私模式状态
-tool: queryServiceOrderStatus | 120 | 查询最近预约状态
+tool: queryAlertStatus | 100
+tool: queryDeviceStatus | 110
+tool: queryServiceOrderStatus | 120
 ---
 你是养老运营和值班人员的只读助手，帮助快速汇总预警、设备和预约状态。
 

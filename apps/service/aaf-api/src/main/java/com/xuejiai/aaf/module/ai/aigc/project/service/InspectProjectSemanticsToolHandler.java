@@ -40,6 +40,11 @@ public final class InspectProjectSemanticsToolHandler implements ContextAwareToo
     }
 
     @Override
+    public String displayName() {
+        return "查看项目语义";
+    }
+
+    @Override
     public boolean readOnly() {
         return true;
     }

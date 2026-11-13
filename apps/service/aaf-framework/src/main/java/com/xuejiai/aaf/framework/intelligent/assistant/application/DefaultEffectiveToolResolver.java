@@ -58,11 +58,11 @@ public final class DefaultEffectiveToolResolver implements EffectiveToolResolver
                                                 || roleWhitelist.contains(tool.name()))
                         .filter(tool -> skillRequirements.contains(tool.name()))
                         .toList();
-        if (!restricted.stream()
-                .map(ToolRef::name)
-                .collect(Collectors.toSet())
-                .containsAll(skillRequirements)) {
-            throw new IllegalStateException("已激活 Skill 的必需工具不在 Role 与 Agent 交集内");
+        var restrictedNames = restricted.stream().map(ToolRef::name).collect(Collectors.toSet());
+        if (!restrictedNames.containsAll(skillRequirements)) {
+            throw new IllegalStateException(
+                    "已激活 Skill 的必需工具不在 Role 与 Agent 交集内: "
+                            + missing(skillRequirements, restrictedNames));
         }
         return mergeDistinct(baseTools, restricted);
     }
@@ -104,9 +104,16 @@ public final class DefaultEffectiveToolResolver implements EffectiveToolResolver
                         .toList();
         var resolved = restricted.stream().map(ToolRef::name).collect(Collectors.toSet());
         if (!resolved.containsAll(skillRequirements)) {
-            throw new IllegalStateException("Assistant Skill 的必需工具不在 Assistant 与 Agent 交集内");
+            throw new IllegalStateException(
+                    "Assistant Skill 的必需工具不在 Assistant 与 Agent 交集内: "
+                            + missing(skillRequirements, resolved));
         }
         return mergeDistinct(baseTools, restricted);
+    }
+
+    /** 缺失的必需工具名，按名称排序，便于定位。 */
+    private static List<String> missing(Set<String> required, Set<String> resolved) {
+        return required.stream().filter(name -> !resolved.contains(name)).sorted().toList();
     }
 
     private static List<ToolRef> mergeDistinct(

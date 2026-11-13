@@ -6,7 +6,7 @@ version: 1
 visibility: INTERNAL
 toolAccessMode: RESTRICT
 changeSummary: 内置初始版本
-tool: aigc.blueprint.proposal.submit | 100 | 提交逻辑 ProjectSpecification、项目初始化、对象、关系、动作、交付集和流程策略；受信范围与版本均由服务端补齐
+tool: aigc.blueprint.proposal.submit | 100
 ---
 # Assistant 项目蓝图规划
 

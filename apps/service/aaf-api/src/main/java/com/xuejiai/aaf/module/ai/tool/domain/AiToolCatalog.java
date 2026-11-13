@@ -25,6 +25,10 @@ public class AiToolCatalog extends BaseEntity {
     @Column(name = "tool_name", nullable = false, unique = true, length = 120)
     private String toolName;
 
+    /** 工具中文名，仅用于界面展示。 */
+    @Column(name = "display_name", length = 64)
+    private String displayName;
+
     @Column(name = "source", nullable = false, length = 32)
     private String source = "LOCAL";
 

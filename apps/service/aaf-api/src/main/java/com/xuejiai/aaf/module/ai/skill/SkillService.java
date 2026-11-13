@@ -627,7 +627,7 @@ public class SkillService
         requirement.setToolVersion(request.toolVersion());
         requirement.setToolName(requireText(request.toolName(), "toolName 不能为空"));
         requirement.setRequired(Boolean.TRUE.equals(request.required()));
-        requirement.setUsagePurpose(requireText(request.usagePurpose(), "usagePurpose 不能为空"));
+        requirement.setUsagePurpose(nullableText(request.usagePurpose()));
         requirement.setSortOrder(request.sortOrder() == null ? 100 : request.sortOrder());
         return requirement;
     }

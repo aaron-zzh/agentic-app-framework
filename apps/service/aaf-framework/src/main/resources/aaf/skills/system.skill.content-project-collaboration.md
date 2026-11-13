@@ -6,10 +6,10 @@ version: 1
 visibility: INTERNAL
 toolAccessMode: RESTRICT
 changeSummary: 内置初始版本
-tool: inspect_project_semantics | 100 | 读取当前 InvocationContext 已绑定项目的语义、readiness 与允许动作，不接受模型指定项目范围
-tool: record_project_text_candidate | 110 | 将模型正文登记为当前 InvocationContext 已绑定项目对象的不可变文本 candidate，不自动采用
-tool: record_project_document_candidate | 120 | 将模型文档正文登记为当前 InvocationContext 已绑定项目对象的不可变文档 candidate，不自动采用
-tool: aigc.project.generation.action.submit | 130 | 提交当前 taskId 已确认的单项生成目标为确定性动作；目标、项目版本与图谱 revision 全部由服务端解析并冻结
+tool: inspect_project_semantics | 100
+tool: record_project_text_candidate | 110
+tool: record_project_document_candidate | 120
+tool: aigc.project.generation.action.submit | 130
 ---
 # 内容项目协作
 

@@ -6,7 +6,7 @@ version: 1
 visibility: INTERNAL
 toolAccessMode: RESTRICT
 changeSummary: 内置初始版本
-tool: script.execute.javascript | 100 | 将明确输入转换为最小纯 JavaScript 脚本并在 GraalVM 受限运行时执行，以真实结果完成确定性计算或数据处理
+tool: script.execute.javascript | 100
 ---
 # 受控 JavaScript 计算
 

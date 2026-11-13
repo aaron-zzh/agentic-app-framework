@@ -2,6 +2,7 @@
  * 技能根元数据与不可变版本编辑 Dialog，供技能选择器和资产页复用。
  *
  * 编辑已有技能时只更新根元数据，并基于当前内容追加新版本，不修改历史版本。
+ * 工具白名单随版本提交（清空即提交空数组）；正文可从已选工具与系统内置工具中搜索插入工具名。
  *
  * @example
  * <SkillEditorDialog open={open} onOpenChange={setOpen} initial={skill} />
@@ -10,7 +11,7 @@
 
 "use client"
 
-import { useEffect, useId, useState } from "react"
+import { useEffect, useId, useRef, useState } from "react"
 
 import {
   Accordion,
@@ -40,14 +41,22 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import {
   type AiSkillToolAccessMode,
+  type AiSkillToolRequirementInput,
+  type AiSkillToolRequirementVO,
   type AiSkillVersionStatus,
   type AiSkillVisibility,
   type AiSkillVO,
   type CreateAiSkillInput,
   type UpdateAiSkillInput,
+  useAiRoleToolOptions,
   useCreateAiSkill,
   useUpdateAiSkill
 } from "@/lib/api/rest/ai"
+import { SYSTEM_TOOL_LABELS, SYSTEM_TOOL_NAMES } from "@/lib/constants/system-tools"
+import { notify } from "@/lib/notification"
+
+import { type SkillToolInsertItem, SkillToolInsertMenu } from "./SkillToolInsertMenu"
+import { type SkillToolDraft, SkillToolRequirementsField } from "./SkillToolRequirementsField"
 
 const VISIBILITY_OPTIONS: ReadonlyArray<{ value: AiSkillVisibility; label: string }> = [
   { value: "PRIVATE", label: "仅自己" },
@@ -99,6 +108,62 @@ function isToolAccessMode(value: string | null): value is AiSkillToolAccessMode 
   return value === "RESTRICT" || value === "INHERIT"
 }
 
+/** 系统内置工具，供正文插入菜单使用，显示中文名。 */
+const SYSTEM_TOOL_ITEMS: SkillToolInsertItem[] = Object.entries(SYSTEM_TOOL_LABELS).map(
+  ([name, label]) => ({ name, label })
+)
+
+/** sortOrder 起始值与步长：按已选顺序生成 100、110、120… */
+const TOOL_SORT_START = 100
+const TOOL_SORT_STEP = 10
+
+/** 正文中以反引号包裹、不含空白的 token。 */
+const BACKTICK_TOKEN_PATTERN = /`([^`\s]+)`/g
+
+/** 版本已声明的工具需求 → 表单草稿，按 sortOrder 保持原顺序。 */
+function toToolDrafts(requirements: AiSkillToolRequirementVO[] | undefined): SkillToolDraft[] {
+  if (!requirements) return []
+  return [...requirements]
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map((requirement) => ({
+      toolName: requirement.toolName || requirement.toolId,
+      required: requirement.required
+    }))
+}
+
+/** 表单草稿 → 提交入参，toolId 与 toolName 均取工具名；何时调用由正文说明，不提交用途。 */
+function toToolRequirementInputs(drafts: SkillToolDraft[]): AiSkillToolRequirementInput[] {
+  return drafts.map((draft, index) => ({
+    toolId: draft.toolName,
+    toolName: draft.toolName,
+    required: draft.required,
+    sortOrder: TOOL_SORT_START + index * TOOL_SORT_STEP
+  }))
+}
+
+/**
+ * 找出正文引用了、但未加入白名单的已知业务工具。
+ * 仅匹配已知工具名，系统内置工具不需要声明，因此不提示。
+ */
+function findUndeclaredToolReferences(
+  content: string,
+  knownToolNames: ReadonlySet<string>,
+  selectedToolNames: ReadonlySet<string>
+): string[] {
+  const missing = new Set<string>()
+  for (const match of content.matchAll(BACKTICK_TOKEN_PATTERN)) {
+    const token = match[1]
+    if (
+      knownToolNames.has(token) &&
+      !selectedToolNames.has(token) &&
+      !SYSTEM_TOOL_NAMES.has(token)
+    ) {
+      missing.add(token)
+    }
+  }
+  return Array.from(missing)
+}
+
 export function SkillEditorDialog({
   open,
   onOpenChange,
@@ -120,8 +185,19 @@ export function SkillEditorDialog({
   const [toolAccessMode, setToolAccessMode] = useState<AiSkillToolAccessMode>("RESTRICT")
   const [changeSummary, setChangeSummary] = useState("")
   const [versionStatus, setVersionStatus] = useState<AiSkillVersionStatus>("DRAFT")
+  const [toolDrafts, setToolDrafts] = useState<SkillToolDraft[]>([])
+  const contentRef = useRef<HTMLTextAreaElement>(null)
+  // 正文最近一次光标/选区位置；未与正文交互时为 null，插入工具名时追加到末尾
+  const contentSelectionRef = useRef<{ start: number; end: number } | null>(null)
   const createSkill = useCreateAiSkill()
   const updateSkill = useUpdateAiSkill()
+  const { data: toolOptions = [] } = useAiRoleToolOptions(open)
+  // 系统内置工具由框架自动提供，不进入白名单可选项
+  const businessToolOptions = toolOptions.filter((tool) => !SYSTEM_TOOL_NAMES.has(tool.name))
+  const selectedToolItems: SkillToolInsertItem[] = toolDrafts.map((draft) => ({
+    name: draft.toolName,
+    label: toolOptions.find((tool) => tool.name === draft.toolName)?.displayName ?? draft.toolName
+  }))
 
   useEffect(() => {
     if (!open) return
@@ -137,7 +213,33 @@ export function SkillEditorDialog({
     setToolAccessMode(latestVersion?.toolAccessMode ?? "RESTRICT")
     setChangeSummary("")
     setVersionStatus(latestVersion?.status ?? "DRAFT")
+    setToolDrafts(toToolDrafts(latestVersion?.toolRequirements))
+    contentSelectionRef.current = null
   }, [initial, latestVersion, open])
+
+  /** 记录正文当前光标/选区，弹出菜单夺走焦点后仍可在原位置插入。 */
+  function rememberContentSelection(element: HTMLTextAreaElement) {
+    contentSelectionRef.current = { start: element.selectionStart, end: element.selectionEnd }
+  }
+
+  /** 在正文光标处插入 `工具名`，插入后光标移到插入内容之后；无光标时追加到末尾。 */
+  function insertToolName(toolName: string) {
+    const token = `\`${toolName}\``
+    const selection = contentSelectionRef.current
+    const start = selection ? Math.min(selection.start, content.length) : content.length
+    const end = selection ? Math.min(selection.end, content.length) : content.length
+    const nextContent = content.slice(0, start) + token + content.slice(end)
+    const caret = start + token.length
+    setContent(nextContent)
+    contentSelectionRef.current = { start: caret, end: caret }
+    // 等待受控 value 提交到 DOM 后再恢复焦点与光标
+    requestAnimationFrame(() => {
+      const element = contentRef.current
+      if (!element) return
+      element.focus()
+      element.setSelectionRange(caret, caret)
+    })
+  }
 
   function handleSave() {
     if (!canSave) return
@@ -162,8 +264,18 @@ export function SkillEditorDialog({
       inputSchema: inputSchema.trim(),
       outputSchema: outputSchema.trim(),
       toolAccessMode,
+      toolRequirements: toToolRequirementInputs(toolDrafts),
       changeSummary: optionalText(changeSummary),
       status: versionStatus
+    }
+    // 软校验：正文引用了已知业务工具但未加入白名单时提示，不阻断保存
+    const undeclaredTools = findUndeclaredToolReferences(
+      input.content,
+      new Set(toolOptions.map((tool) => tool.name)),
+      new Set(selectedToolItems.map((item) => item.name))
+    )
+    if (undeclaredTools.length > 0) {
+      notify.warning(`正文引用了未选择的工具：${undeclaredTools.join("、")}`)
     }
     const onSuccess = (skill: AiSkillVO) => {
       onSaved?.(skill)
@@ -284,12 +396,32 @@ export function SkillEditorDialog({
             </div>
           </div>
 
+          <SkillToolRequirementsField
+            value={toolDrafts}
+            onChange={setToolDrafts}
+            options={businessToolOptions}
+            disabled={isPending}
+          />
+
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor={`${uid}-content`}>版本正文</Label>
+            <div className="flex items-center justify-between gap-2">
+              <Label htmlFor={`${uid}-content`}>版本正文</Label>
+              <SkillToolInsertMenu
+                selectedTools={selectedToolItems}
+                systemTools={SYSTEM_TOOL_ITEMS}
+                onInsert={insertToolName}
+                disabled={isPending}
+              />
+            </div>
             <Textarea
               id={`${uid}-content`}
+              ref={contentRef}
               value={content}
-              onChange={(event) => setContent(event.target.value)}
+              onChange={(event) => {
+                setContent(event.target.value)
+                rememberContentSelection(event.currentTarget)
+              }}
+              onSelect={(event) => rememberContentSelection(event.currentTarget)}
               placeholder="输入 Markdown 格式的执行知识与约束"
               className="min-h-48 font-mono"
               disabled={isPending}

@@ -10,6 +10,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import com.xuejiai.aaf.common.util.JsonUtils;
+import com.xuejiai.aaf.framework.engine.tool.ToolCatalogProvider;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantDefinition;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantDefinition.Lifecycle;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantDefinition.RiskPolicy;
@@ -47,18 +48,21 @@ public final class JpaAssistantDefinitionAdapter implements AssistantDefinitionP
     private final AiAssistantRoleRepository bindings;
     private final AiRoleRepository roles;
     private final AiModelRepository models;
+    private final ToolCatalogProvider toolCatalog;
 
     public JpaAssistantDefinitionAdapter(
             AssistantRepository assistants,
             PersonaRepository personas,
             AiAssistantRoleRepository bindings,
             AiRoleRepository roles,
-            AiModelRepository models) {
+            AiModelRepository models,
+            ToolCatalogProvider toolCatalog) {
         this.assistants = Objects.requireNonNull(assistants, "assistants 不能为空");
         this.personas = Objects.requireNonNull(personas, "personas 不能为空");
         this.bindings = Objects.requireNonNull(bindings, "bindings 不能为空");
         this.roles = Objects.requireNonNull(roles, "roles 不能为空");
         this.models = Objects.requireNonNull(models, "models 不能为空");
+        this.toolCatalog = Objects.requireNonNull(toolCatalog, "toolCatalog 不能为空");
     }
 
     @Override
@@ -240,7 +244,7 @@ public final class JpaAssistantDefinitionAdapter implements AssistantDefinitionP
         return java.util.Collections.unmodifiableSet(values);
     }
 
-    private static ToolPolicy toolPolicy(List<Role> roles, Set<String> assistantToolKeys) {
+    private ToolPolicy toolPolicy(List<Role> roles, Set<String> assistantToolKeys) {
         var rules = new LinkedHashMap<String, ToolRule>();
         java.util.stream.Stream.concat(
                         roles.stream().flatMap(role -> role.toolKeys().stream()),
@@ -263,7 +267,23 @@ public final class JpaAssistantDefinitionAdapter implements AssistantDefinitionP
         return new ToolPolicy(rules);
     }
 
-    private static ActionEffect effect(String tool) {
+    /**
+     * 工具的读写效果以工具目录声明为准（{@code read_only} / {@code reversible}），与 {@code ToolGateway} 调用期校验的目录元数据同源，
+     * 避免按名称猜测与目录不一致（如 {@code agriDraftDeviceCommand} 是写工具但名称不含写入关键词）。
+     * 只有不在目录中的内置控制工具才按名称推断，它们在执行期另有固定规则。
+     */
+    private ActionEffect effect(String tool) {
+        var entry = toolCatalog.find(tool).orElse(null);
+        if (entry != null) {
+            if (entry.readOnly()) return ActionEffect.READ;
+            return entry.reversible()
+                    ? ActionEffect.REVERSIBLE_WRITE
+                    : ActionEffect.IRREVERSIBLE_WRITE;
+        }
+        return effectByName(tool);
+    }
+
+    private static ActionEffect effectByName(String tool) {
         var normalized = tool.toLowerCase(java.util.Locale.ROOT);
         if (normalized.contains("handoff")) return ActionEffect.HUMAN_HANDOFF;
         if (normalized.contains("delete") || normalized.contains("publish"))

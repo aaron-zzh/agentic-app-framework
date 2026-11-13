@@ -101,7 +101,7 @@ class DefaultEffectiveToolResolverTest {
                                         Set.of("browser"),
                                         List.of(tool("search"))))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessage("已激活 Skill 的必需工具不在 Role 与 Agent 交集内");
+                .hasMessage("已激活 Skill 的必需工具不在 Role 与 Agent 交集内: [search]");
     }
 
     @Test
@@ -217,7 +217,7 @@ class DefaultEffectiveToolResolverTest {
                                         Set.of("browser"),
                                         List.of(tool("search"))))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessage("Assistant Skill 的必需工具不在 Assistant 与 Agent 交集内");
+                .hasMessage("Assistant Skill 的必需工具不在 Assistant 与 Agent 交集内: [search]");
     }
 
     @Test

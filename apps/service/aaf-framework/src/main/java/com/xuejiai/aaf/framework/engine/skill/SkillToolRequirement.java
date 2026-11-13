@@ -35,7 +35,8 @@ public class SkillToolRequirement {
     @Column(nullable = false)
     private Boolean required = false;
 
-    @Column(name = "usage_purpose", nullable = false, length = 512)
+    /** 可选用途备注；不进入提示词，何时调用由 Skill 正文说明。 */
+    @Column(name = "usage_purpose", length = 512)
     private String usagePurpose;
 
     @Column(name = "sort_order", nullable = false)

@@ -36,7 +36,7 @@ export interface AiSkillToolRequirementVO {
   toolVersion: number | null
   toolName: string
   required: boolean
-  usagePurpose: string
+  usagePurpose: string | null
   sortOrder: number
 }
 
@@ -106,7 +106,7 @@ export interface AiSkillToolRequirementInput {
   toolVersion?: number
   toolName: string
   required?: boolean
-  usagePurpose: string
+  usagePurpose?: string
   sortOrder?: number
 }
 

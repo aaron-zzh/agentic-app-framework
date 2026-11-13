@@ -688,7 +688,7 @@ INSERT INTO ai_tool_catalog (
      '{"type":"object","additionalProperties":false,"properties":{}}', NULL,
      410, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
     ('draftServiceOrder', 'LOCAL', TRUE, 'FUNCTION', 'ELDER', 'LOW',
-     FALSE, FALSE, FALSE, FALSE, NULL, NULL, NULL,
+     TRUE, FALSE, FALSE, FALSE, NULL, NULL, NULL,
      '{"type":"object","additionalProperties":false,"required":["serviceItemId","scheduledAt","serviceAddress"],"properties":{"serviceItemId":{"type":"integer"},"quantity":{"type":"integer","minimum":1,"default":1},"scheduledAt":{"type":"string","format":"date-time"},"serviceAddress":{"type":"string","minLength":1,"maxLength":500},"notes":{"type":"string","maxLength":1000}}}', NULL,
      420, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
     ('confirmServiceOrder', 'LOCAL', TRUE, 'FUNCTION', 'ELDER', 'HIGH',
@@ -712,7 +712,7 @@ INSERT INTO ai_tool_catalog (
      '{"type":"object","additionalProperties":false,"properties":{}}', NULL,
      470, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
     ('draftMedicationPlan', 'LOCAL', TRUE, 'FUNCTION', 'ELDER', 'LOW',
-     FALSE, FALSE, FALSE, FALSE, NULL, NULL, NULL,
+     TRUE, FALSE, FALSE, FALSE, NULL, NULL, NULL,
      '{"type":"object","additionalProperties":false,"required":["medicationName","reminderTimes"],"properties":{"medicationName":{"type":"string","minLength":1,"maxLength":200},"dosageInstructions":{"type":"string","maxLength":500},"reminderTimes":{"type":"array","minItems":1,"maxItems":24,"items":{"type":"string","pattern":"^(?:[01]\\d|2[0-3]):[0-5]\\d$"}},"startDate":{"type":"string","format":"date"},"endDate":{"type":"string","format":"date"}}}', NULL,
      480, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
     ('confirmMedicationPlan', 'LOCAL', TRUE, 'FUNCTION', 'ELDER', 'HIGH',
@@ -742,6 +742,25 @@ SET source = EXCLUDED.source,
     output_schema = EXCLUDED.output_schema,
     sort_order = EXCLUDED.sort_order,
     update_time = CURRENT_TIMESTAMP;
+
+-- 工具中文名：只用于界面展示，模型调用与 Skill 正文引用仍使用 tool_name。
+UPDATE ai_tool_catalog catalog
+SET display_name = item.display_name
+FROM (VALUES
+    ('queryElderOverview', '长者概况'),
+    ('listAvailableServices', '可预约服务'),
+    ('draftServiceOrder', '起草服务预约'),
+    ('confirmServiceOrder', '确认服务预约'),
+    ('queryServiceOrderStatus', '预约状态查询'),
+    ('queryAlertStatus', '预警状态查询'),
+    ('queryDeviceStatus', '设备状态查询'),
+    ('listMedicationPlans', '用药计划'),
+    ('draftMedicationPlan', '起草用药计划'),
+    ('confirmMedicationPlan', '确认用药计划'),
+    ('listRecentPhotos', '最近照片'),
+    ('searchRehabGuide', '康复指导检索')
+) AS item(tool_name, display_name)
+WHERE catalog.tool_name = item.tool_name AND catalog.deleted = FALSE;
 
 
 -- ============================================================

@@ -17,8 +17,8 @@ import com.xuejiai.aaf.framework.intelligent.assistant.model.SkillActivationMode
  * 解析内置技能的 Markdown 源文件。
  *
  * <p>文件名必须等于技能 code；frontmatter 每行一个 {@code key: value}，{@code category}、{@code tool}
- * 可重复，其余字段只能出现一次； 正文即技能执行内容。{@code tool} 格式为 {@code 工具名 | 排序 | 用途}，{@code systemBinding} 格式为 {@code
- * 激活方式 | 排序}。
+ * 可重复，其余字段只能出现一次； 正文即技能执行内容。{@code tool} 格式为 {@code 工具名 | 排序}（可选第三段用途备注），{@code systemBinding} 格式为
+ * {@code 激活方式 | 排序}。
  */
 @Component
 public class SkillMarkdownSourceParser {
@@ -144,17 +144,21 @@ public class SkillMarkdownSourceParser {
                 SkillActivationMode.valueOf(parts[0]).name(), Integer.parseInt(parts[1]));
     }
 
+    /** {@code tool} 格式为 {@code 工具名 | 排序}，可选第三段为备注用途；用途不进入提示词，何时调用由正文说明。 */
     private static List<ToolRequirement> parseTools(List<String> values, Resource resource) {
         var tools = new ArrayList<ToolRequirement>();
         var names = new java.util.HashSet<String>();
         for (var value : values) {
-            var parts = split(value, 3, "tool", resource);
+            var parts = split(value, value.split("\\|", 3).length == 3 ? 3 : 2, "tool", resource);
             requireLength(parts[0], 128, "tool", resource);
-            requireLength(parts[2], 512, "tool usagePurpose", resource);
+            var usagePurpose = parts.length == 3 ? parts[2] : null;
+            if (usagePurpose != null) {
+                requireLength(usagePurpose, 512, "tool usagePurpose", resource);
+            }
             if (!names.add(parts[0])) {
                 throw new IllegalStateException("Skill tool 重复: " + parts[0] + " @ " + resource);
             }
-            tools.add(new ToolRequirement(parts[0], Integer.parseInt(parts[1]), parts[2]));
+            tools.add(new ToolRequirement(parts[0], Integer.parseInt(parts[1]), usagePurpose));
         }
         return List.copyOf(tools);
     }
@@ -190,7 +194,7 @@ public class SkillMarkdownSourceParser {
         }
     }
 
-    /** 工具要求：工具名、排序与用途；初始版本一律为必需（required）。 */
+    /** 工具要求：工具名、排序与可选用途备注；初始版本一律为必需（required）。 */
     public record ToolRequirement(String toolName, int sortOrder, String usagePurpose) {}
 
     /** 系统级默认绑定：激活方式与排序。 */

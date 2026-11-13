@@ -42,7 +42,7 @@ public record SkillCreateDTO(
             Long toolVersion,
             @NotBlank @Size(max = 128) String toolName,
             Boolean required,
-            @NotBlank @Size(max = 512) String usagePurpose,
+            @Size(max = 512) String usagePurpose,
             @PositiveOrZero Integer sortOrder) {}
 
     /** 不可变版本的模型能力需求。 */

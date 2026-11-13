@@ -17,4 +17,6 @@ public record ToolCatalogEntry(
         String costExpression,
         String inputSchema,
         String outputSchema,
-        Integer sortOrder) {}
+        Integer sortOrder,
+        /* 工具中文名，仅用于界面展示；未配置时为 null。 */
+        String displayName) {}

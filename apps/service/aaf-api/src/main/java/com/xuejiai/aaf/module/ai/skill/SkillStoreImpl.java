@@ -276,6 +276,9 @@ interface SkillToolRequirementRepository extends JpaRepository<SkillToolRequirem
     List<SkillToolRequirement> findBySkillVersionId(Long skillVersionId);
 
     List<SkillToolRequirement> findBySkillVersionIdOrderBySortOrderAscIdAsc(Long skillVersionId);
+
+    List<SkillToolRequirement> findBySkillVersionIdInOrderBySkillVersionIdAscSortOrderAscIdAsc(
+            Collection<Long> skillVersionIds);
 }
 
 @Repository

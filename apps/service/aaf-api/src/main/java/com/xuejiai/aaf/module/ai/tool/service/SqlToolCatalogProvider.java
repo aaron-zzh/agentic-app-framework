@@ -54,7 +54,8 @@ public class SqlToolCatalogProvider implements ToolCatalogProvider {
                 entity.getCostExpression(),
                 entity.getInputSchema(),
                 entity.getOutputSchema(),
-                entity.getSortOrder());
+                entity.getSortOrder(),
+                entity.getDisplayName());
     }
 
     private <E extends Enum<E>> E enumValue(Class<E> type, String value, E defaultValue) {

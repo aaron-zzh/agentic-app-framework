@@ -42,6 +42,11 @@ public final class RecordProjectDocumentCandidateToolHandler
     }
 
     @Override
+    public String displayName() {
+        return "登记文档候选";
+    }
+
+    @Override
     public boolean reversible() {
         return true;
     }

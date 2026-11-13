@@ -42,6 +42,11 @@ public final class RecordProjectTextCandidateToolHandler extends ProjectArtifact
     }
 
     @Override
+    public String displayName() {
+        return "登记文本候选";
+    }
+
+    @Override
     public boolean reversible() {
         return true;
     }

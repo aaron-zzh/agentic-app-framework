@@ -20,6 +20,7 @@
  */
 
 import type { Edge } from "@xyflow/react"
+import { SYSTEM_TOOL_NAMES } from "@/lib/constants/system-tools"
 import { ASSISTANT_STROKE, RESOURCE_KIND_LABELS, RESOURCE_STROKE } from "./canvas-palette"
 import type {
   CollaborationFlowNode,
@@ -30,8 +31,11 @@ import type {
   ResourceNodeData
 } from "./types"
 
-/** 单列最多显示的节点数，超出折叠为"+N" */
+/** 角色列最多显示的节点数，超出折叠为"+N" */
 const COLUMN_LIMIT = 12
+
+/** 技能、工具等资源列最多显示的节点数：画布可全屏，资源卡片矮，默认多展开一些 */
+const RESOURCE_COLUMN_LIMIT = 24
 
 /** 各列的横坐标 */
 const ASSISTANT_X = 0
@@ -66,29 +70,6 @@ const SYSTEM_SKILL_KEYS: ReadonlySet<string> = new Set([
 function isSystemSkill(key: string): boolean {
   return key.startsWith("builtin-") || SYSTEM_SKILL_KEYS.has(key)
 }
-
-/**
- * 平台控制类工具名：任务控制、执行上报、澄清、上下文加载、知识检索、UI 渲染与脚本执行。
- * 与后端 BuiltinControlToolProfile 的控制工具及框架内置通用工具保持一致，后端增删时同步修改。
- */
-const SYSTEM_TOOL_NAMES: ReadonlySet<string> = new Set([
-  "inspect_tasks",
-  "promote_to_task",
-  "amend_task",
-  "pause_task",
-  "resume_task",
-  "take_over_task",
-  "hand_back_task",
-  "cancel_task",
-  "context.load",
-  "plan_steps",
-  "report_step",
-  "request_clarification",
-  "delegate_agents",
-  "knowledge_search",
-  "render_ui_block",
-  "script.execute.javascript"
-])
 
 export interface CollaborationLayoutOptions {
   /** 已展开的可展开节点 id（系统技能、系统工具、各"+N"节点） */
@@ -186,7 +167,7 @@ function columnItems(sections: Section[], expanded: ReadonlySet<string>): Column
   const listTotal = active
     .filter((section) => !section.aggregate)
     .reduce((sum, section) => sum + section.entries.length, 0)
-  const budget = Math.max(2, COLUMN_LIMIT - aggregateCount)
+  const budget = Math.max(2, RESOURCE_COLUMN_LIMIT - aggregateCount)
 
   return active.map((section) => {
     const entryItem = (entry: ResourceEntry): ColumnItem => ({

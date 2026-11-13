@@ -6,7 +6,7 @@ version: 1
 visibility: PUBLIC
 toolAccessMode: RESTRICT
 changeSummary: 内置初始版本
-tool: content.draft.upsert | 100 | 将规范 Markdown 产物保存为可撤销数据库草稿，显式 RETURN_ONLY 时由执行画像移除
+tool: content.draft.upsert | 100
 ---
 # 内容创作调度器 (Content-Schedule)
 

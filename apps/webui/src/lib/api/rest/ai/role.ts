@@ -102,6 +102,8 @@ export interface MyAiRoleInput {
 
 export interface AiRoleToolOption {
   name: string
+  /** 工具中文名，仅用于展示；未配置时为 null */
+  displayName: string | null
   category: string | null
   riskLevel: string | null
   requireConfirm: boolean

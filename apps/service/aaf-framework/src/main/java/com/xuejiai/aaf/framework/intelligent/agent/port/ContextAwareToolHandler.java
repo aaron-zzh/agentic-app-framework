@@ -46,6 +46,11 @@ public interface ContextAwareToolHandler {
         return false;
     }
 
+    /** 工具中文名，仅用于界面展示；内置工具不在 {@code ai_tool_catalog} 时由实现类声明。默认未声明。 */
+    default String displayName() {
+        return null;
+    }
+
     /**
      * 参数 JSON Schema，对齐官方 {@code ToolBase.getParameters()}。默认空 schema（无参数），
      * 有入参的工具必须显式覆盖，否则模型看不到正确的调用契约。
