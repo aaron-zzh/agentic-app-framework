@@ -14,6 +14,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 import com.xuejiai.aaf.framework.intelligent.agent.model.AgentExecutionCommand;
+import com.xuejiai.aaf.framework.intelligent.agent.port.ToolGatewayPort;
 import com.xuejiai.aaf.framework.intelligent.core.model.ModelSpec;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.tool.ToolResultEvidenceStore;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent;
@@ -38,6 +39,9 @@ import io.agentscope.core.event.RequireUserConfirmEvent;
 import io.agentscope.core.event.TextBlockDeltaEvent;
 import io.agentscope.core.event.TextBlockEndEvent;
 import io.agentscope.core.event.TextBlockStartEvent;
+import io.agentscope.core.event.ThinkingBlockDeltaEvent;
+import io.agentscope.core.event.ThinkingBlockEndEvent;
+import io.agentscope.core.event.ThinkingBlockStartEvent;
 import io.agentscope.core.event.ToolCallDeltaEvent;
 import io.agentscope.core.event.ToolCallEndEvent;
 import io.agentscope.core.event.ToolCallStartEvent;
@@ -63,6 +67,7 @@ public final class AgentScopeEventMapper {
 
     private static final String CONTENT_DRAFT_UPSERT_TOOL = "content.draft.upsert";
     private static final String CONTENT_DRAFT_PREVIEW_KIND = "CONTENT_DRAFT";
+    private static final int TOOL_ERROR_PREVIEW_LIMIT = 300;
 
     private final ToolResultEvidenceStore evidenceStore;
 
@@ -191,9 +196,47 @@ public final class AgentScopeEventMapper {
                                         : denied.stream().map(ToolUseBlock::getName).toList()));
             }
 
-            // ===== 安全忽略：思考内容不外发（AAF-106 #10603 同一约束，在本层拦截而非投影层过滤） =====
-            // 原始 CoT 属披露层决策，与模型是否开启思考无关；阶段感知由 STEP/Activity 表达，不伪造成 reasoning
-            case THINKING_BLOCK_START, THINKING_BLOCK_DELTA, THINKING_BLOCK_END -> Optional.empty();
+            // ===== 映射：思考块三段生命周期 =====
+            // 是否外发由 AG-UI 投影层按开关与交付节点判定；增量与文本增量同为瞬态数据，不落库、不进入最终回复
+            case THINKING_BLOCK_START -> {
+                var start = (ThinkingBlockStartEvent) source;
+                yield event(
+                        source,
+                        command,
+                        agentIdentifier,
+                        state,
+                        ExecutionEventType.REASONING_STARTED,
+                        state.status(),
+                        payload("replyId", start.getReplyId(), "blockId", start.getBlockId()));
+            }
+            case THINKING_BLOCK_DELTA -> {
+                var delta = (ThinkingBlockDeltaEvent) source;
+                yield event(
+                        source,
+                        command,
+                        agentIdentifier,
+                        state,
+                        ExecutionEventType.REASONING_DELTA,
+                        state.status(),
+                        payload(
+                                "replyId",
+                                delta.getReplyId(),
+                                "blockId",
+                                delta.getBlockId(),
+                                "delta",
+                                delta.getDelta()));
+            }
+            case THINKING_BLOCK_END -> {
+                var end = (ThinkingBlockEndEvent) source;
+                yield event(
+                        source,
+                        command,
+                        agentIdentifier,
+                        state,
+                        ExecutionEventType.REASONING_COMPLETED,
+                        state.status(),
+                        payload("replyId", end.getReplyId(), "blockId", end.getBlockId()));
+            }
 
             // ===== 安全忽略：二进制块不进事件账本 =====
             // 图片/音频等内容经工具证据与产物引用传递，事件里只放引用，避免把 base64 写进事件表
@@ -417,6 +460,7 @@ public final class AgentScopeEventMapper {
                         .take(command.context().executionId(), source.getToolCallId())
                         .orElseGet(java.util.Map::of);
         if (!successful && Boolean.TRUE.equals(evidence.get("authorizationRequired"))) {
+            state.takeToolResultPrefix(source.getToolCallId());
             state.status(ExecutionEventStatus.AWAITING_AUTHORIZATION);
             var values = toolResultPayload(source, resultState, evidence);
             return event(
@@ -428,6 +472,36 @@ public final class AgentScopeEventMapper {
                     ExecutionEventStatus.AWAITING_AUTHORIZATION,
                     new ExecutionEventPayload(values));
         }
+        var values = toolResultPayload(source, resultState, evidence);
+        // 控制交接（自动升级 / promote_to_task / activate_role）以挂起结束循环，语义为交接完成；
+        // resultState 保留挂起原值
+        if (!successful && Boolean.TRUE.equals(evidence.get(ToolGatewayPort.CONTROL_HANDOFF_KEY))) {
+            state.takeToolResultPrefix(source.getToolCallId());
+            log.debug(
+                    "[工具结果] 控制交接：toolCallId={}，tool={}，resultState={}，promotedTaskId={}",
+                    source.getToolCallId(),
+                    source.getToolCallName(),
+                    values.get("resultState"),
+                    evidence.get("promotedTaskId"));
+            return event(
+                    source,
+                    command,
+                    agentIdentifier,
+                    state,
+                    ExecutionEventType.TOOL_CALL_COMPLETED,
+                    state.status(),
+                    new ExecutionEventPayload(values));
+        }
+        var errorPreview = state.takeToolResultPrefix(source.getToolCallId());
+        if (!successful && errorPreview != null) {
+            // 失败原因此前只落长度，无法排查参数校验等问题；仅失败时保留有界前缀
+            values.put("errorPreview", errorPreview);
+            log.debug(
+                    "[工具结果] 工具调用失败：toolCallId={}，tool={}，原因={}",
+                    source.getToolCallId(),
+                    source.getToolCallName(),
+                    errorPreview);
+        }
         return event(
                 source,
                 command,
@@ -437,7 +511,7 @@ public final class AgentScopeEventMapper {
                         ? ExecutionEventType.TOOL_CALL_COMPLETED
                         : ExecutionEventType.TOOL_CALL_FAILED,
                 state.status(),
-                new ExecutionEventPayload(toolResultPayload(source, resultState, evidence)));
+                new ExecutionEventPayload(values));
     }
 
     /** 工具结果载荷：标识 + 结果状态 + 已过滤的业务证据。 */
@@ -593,6 +667,7 @@ public final class AgentScopeEventMapper {
             String agentIdentifier,
             MappingState state) {
         var delta = source.getDelta();
+        state.appendToolResultText(source.getToolCallId(), delta);
         return event(
                 source,
                 command,
@@ -1189,12 +1264,34 @@ public final class AgentScopeEventMapper {
         private final AtomicReference<ExecutionEventStatus> status =
                 new AtomicReference<>(ExecutionEventStatus.RUNNING);
         private final Map<String, ContentDraftPreviewParser> contentDraftPreviews = new HashMap<>();
+        // 工具结果文本前缀：仅在失败时写入 errorPreview，便于排查；成功结果不外露
+        private final Map<String, StringBuilder> toolResultPrefixes = new HashMap<>();
 
         public MappingState(long sequenceBase) {
             if (sequenceBase < 0) {
                 throw new IllegalArgumentException("sequenceBase 不能小于 0");
             }
             this.sequence = new AtomicLong(sequenceBase);
+        }
+
+        void appendToolResultText(String toolCallId, String delta) {
+            if (toolCallId == null || toolCallId.isBlank() || delta == null || delta.isEmpty()) {
+                return;
+            }
+            var buffer =
+                    toolResultPrefixes.computeIfAbsent(toolCallId, ignored -> new StringBuilder());
+            var remaining = TOOL_ERROR_PREVIEW_LIMIT - buffer.length();
+            if (remaining > 0) {
+                buffer.append(delta, 0, Math.min(remaining, delta.length()));
+            }
+        }
+
+        String takeToolResultPrefix(String toolCallId) {
+            if (toolCallId == null) {
+                return null;
+            }
+            var buffer = toolResultPrefixes.remove(toolCallId);
+            return buffer == null || buffer.isEmpty() ? null : buffer.toString();
         }
 
         Optional<String> acceptContentDraftDelta(String toolCallId, String delta) {

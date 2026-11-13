@@ -33,6 +33,8 @@ public final class AafAguiStreamContext {
     private final Set<String> endedMessages = new LinkedHashSet<>();
     private final Set<String> startedToolCalls = new LinkedHashSet<>();
     private final Set<String> endedToolCalls = new LinkedHashSet<>();
+    private final Set<String> startedReasoning = new LinkedHashSet<>();
+    private final Set<String> endedReasoning = new LinkedHashSet<>();
     private final Map<String, Map<String, Object>> subTaskStates = new LinkedHashMap<>();
     private final Map<String, Map<String, Object>> lastPublishedActivityContent =
             new LinkedHashMap<>();
@@ -82,6 +84,37 @@ public final class AafAguiStreamContext {
         return List.of(new AguiEvent.TextMessageEnd(threadId, runId, messageId));
     }
 
+    /** 思考块开启：REASONING_START 与 REASONING_MESSAGE_START 成对发出，同一 messageId 只开启一次。 */
+    public List<AguiEvent> reasoningStart(String messageId) {
+        if (!startedReasoning.add(messageId)) {
+            return List.of();
+        }
+        return List.of(
+                new AguiEvent.ReasoningStart(threadId, runId, messageId, null),
+                new AguiEvent.ReasoningMessageStart(threadId, runId, messageId, "assistant"));
+    }
+
+    /** 思考增量必须落在已开启的思考块内，因此先补 START 再发内容。 */
+    public List<AguiEvent> reasoningContent(String messageId, String delta) {
+        var events = new ArrayList<AguiEvent>(reasoningStart(messageId));
+        events.add(new AguiEvent.ReasoningMessageContent(threadId, runId, messageId, delta));
+        return List.copyOf(events);
+    }
+
+    /** 未开启过的思考块不发 END，避免客户端建出空思考块。 */
+    public List<AguiEvent> reasoningEnd(String messageId) {
+        if (!startedReasoning.contains(messageId) || !endedReasoning.add(messageId)) {
+            return List.of();
+        }
+        return reasoningEndEvents(messageId);
+    }
+
+    private List<AguiEvent> reasoningEndEvents(String messageId) {
+        return List.of(
+                new AguiEvent.ReasoningMessageEnd(threadId, runId, messageId),
+                new AguiEvent.ReasoningEnd(threadId, runId, messageId));
+    }
+
     public List<AguiEvent> toolCallStart(String toolCallId, String toolName) {
         if (!startedToolCalls.add(toolCallId)) {
             return List.of();
@@ -90,14 +123,14 @@ public final class AafAguiStreamContext {
     }
 
     /**
-     * 工具结果：先补 TOOL_CALL_END 关闭参数阶段，再发 TOOL_CALL_RESULT。
+     * 工具结果：本 run 内开启过的调用先补 TOOL_CALL_END 关闭参数阶段，再发 TOOL_CALL_RESULT。
      *
-     * <p>结果先到而 START 未记录时补记 startedToolCalls，避免 {@link #close()} 再补一次 END。
+     * <p>审批/澄清恢复是新的 run，挂起调用的 START/END 已在上一个 run 发出；此时不能补 END（客户端会以"无活跃调用"拒收）， 只发 TOOL_CALL_RESULT
+     * 回填到原调用上，也不登记到本 run 的配对集合，避免 {@link #close()} 再补 END。
      */
     public List<AguiEvent> toolCallResult(String toolCallId, String content) {
         var events = new ArrayList<AguiEvent>();
-        startedToolCalls.add(toolCallId);
-        if (endedToolCalls.add(toolCallId)) {
+        if (startedToolCalls.contains(toolCallId) && endedToolCalls.add(toolCallId)) {
             events.add(new AguiEvent.ToolCallEnd(threadId, runId, toolCallId));
         }
         events.add(
@@ -231,12 +264,16 @@ public final class AafAguiStreamContext {
             return List.of();
         }
         runFinished = true;
-        return List.of(
+        // 与 runError 相同：客户端校验要求 RUN_FINISHED 前所有 message/tool call 已闭合，
+        // 等待授权的工具调用此时只是参数已完成、结果待审批后产出，补发 TOOL_CALL_END 不代表执行结束
+        var events = closeOpenStreams();
+        events.add(
                 new AguiEvent.RunFinished(
                         threadId,
                         runId,
                         null,
                         new AguiEvent.RunFinishedInterruptOutcome(interrupts)));
+        return List.copyOf(events);
     }
 
     /**
@@ -270,6 +307,11 @@ public final class AafAguiStreamContext {
 
     private List<AguiEvent> closeOpenStreams() {
         var events = new ArrayList<AguiEvent>();
+        for (var messageId : startedReasoning) {
+            if (endedReasoning.add(messageId)) {
+                events.addAll(reasoningEndEvents(messageId));
+            }
+        }
         for (var messageId : startedMessages) {
             if (endedMessages.add(messageId)) {
                 events.add(new AguiEvent.TextMessageEnd(threadId, runId, messageId));

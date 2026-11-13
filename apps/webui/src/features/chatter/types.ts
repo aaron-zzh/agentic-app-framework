@@ -19,7 +19,7 @@ export type TaskModelSelection = { mode: "AUTO" } | { mode: "EXPLICIT"; modelId:
 /** Chatter 默认由后端能力路由自动选择任务模型。 */
 export const DEFAULT_TASK_MODEL_SELECTION: TaskModelSelection = { mode: "AUTO" }
 
-/** 仅控制服务端计划进度和安全推理摘要的 UI 展示，不改变执行决策。 */
+/** 仅控制服务端计划进度和思考过程的 UI 展示，不改变执行决策。 */
 export interface ChatterDisplayPreferences {
   showPlan: boolean
   showThinking: boolean
@@ -27,7 +27,7 @@ export interface ChatterDisplayPreferences {
 
 export const DEFAULT_CHATTER_DISPLAY_PREFERENCES: ChatterDisplayPreferences = {
   showPlan: true,
-  showThinking: false
+  showThinking: true
 }
 
 /** 对话目标 */

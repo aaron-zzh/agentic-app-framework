@@ -61,6 +61,9 @@ public class AiProperties {
     /** 助理执行轨迹摘要日志配置 */
     private ExecutionTraceConfig executionTrace = new ExecutionTraceConfig();
 
+    /** 思考过程外发配置 */
+    private ReasoningConfig reasoning = new ReasoningConfig();
+
     /**
      * 协调者写给聚合者的聚合要求（{@code delegate_agents} 的 {@code aggregationContract.requirements}）默认字符上限； 请求参数
      * {@code aggregationRequirementsMaxChars} 可覆盖，硬顶 32000 字符。区别于 {@code
@@ -164,6 +167,15 @@ public class AiProperties {
     public static class ExecutionTraceConfig {
 
         /** 是否打印执行轨迹摘要。 */
+        private Boolean enabled = true;
+    }
+
+    /** 思考过程外发：只投影交付节点（面向用户的应答者）的思考，内部节点一律不外发。 */
+    @Getter
+    @Setter
+    public static class ReasoningConfig {
+
+        /** 是否把交付节点的思考过程投影为 AG-UI REASONING_* 事件；关闭后思考内容不出服务端。 */
         private Boolean enabled = true;
     }
 }

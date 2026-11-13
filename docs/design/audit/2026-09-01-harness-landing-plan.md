@@ -239,7 +239,7 @@ private ReActAgent buildAgent(
 | `STEP_STARTED/FINISHED` | 未产出，阶段走 Custom。 | 对稳定 planning/execution/verification/aggregation 阶段必须成对产出；taskId 等完整拓扑仍走 Activity/Custom。 | 计划与 TaskBoard 状态事件需有稳定 step key。 |
 | `MESSAGES_SNAPSHOT` | 未产出。 | 断线重连或显式 snapshot 请求时产出，不在每次增量流重复发送。 | 从会话公共消息读取端口构造，不从 AgentState 隐式历史读取。 |
 | `ACTIVITY_SNAPSHOT/DELTA` | 未产出。`apps/service/aaf-api/src/main/java/com/xuejiai/aaf/module/ai/agui/AgUiProjector.java` | 用于 TaskBoard、executor plan、审批和子任务进度；snapshot 初始化，delta 用 JSON Patch。 | 从安全 TaskBoard view 和 public events 投影。官方字段：`tmp/agentscope-java/agentscope-extensions/agentscope-extensions-protocol/agentscope-extensions-agui/src/main/java/io/agentscope/core/agui/event/AguiEvent.java:1438-1566`。 |
-| `REASONING_*` | 全缺。 | **不外发原始 CoT**（这是披露层决策，与模型是否思考无关，见[思考模式的三层边界](#思考模式的三层边界)）；provider 提供可公开 reasoning 摘要时，由租户级开关决定是否发摘要。"正在规划/执行"用 STEP/Activity 表达，不伪造成 reasoning。 | `THINKING_BLOCK_*` 在 `AgentScopeEventMapper` 层就不进入公共事件流（不是在投影层过滤），否则新增一个 converter 即可泄漏。 |
+| `REASONING_*` | 全缺。 | **2026-11-12 人类改判，取代下列原结论**：交付节点思考默认外发，内部节点不外发，开关 `aaf.ai.reasoning.enabled`。原结论：不外发原始 CoT（这是披露层决策，与模型是否思考无关，见[思考模式的三层边界](#思考模式的三层边界)）；provider 提供可公开 reasoning 摘要时，由租户级开关决定是否发摘要。"正在规划/执行"用 STEP/Activity 表达，不伪造成 reasoning。 | `ReasoningMessageEventConverter` 只对交付节点投影；`InternalNodeEventConverter` 丢弃思考事件，内部节点无法经 CUSTOM 泄漏。 |
 | `REASONING_ENCRYPTED_VALUE` | 未产出。 | 当前明确不产出；只有端到端密文保真需求和独立安全设计后启用。 | 无。 |
 | `CUSTOM` | 已作为所有 AAF 事件兜底。 | 保留 `aaf.authorization.*`、审批、澄清、任务拓扑、证据等无一等协议类型的安全扩展；不再把可标准化事件全部降级为 Custom。 | 扩展 AAF converter registry。 |
 | `RAW` | 未产出。 | 明确不产出；不得绕过 `ExecutionEventPublicMapper` 暴露内部事件。 | 无。 |
@@ -395,7 +395,7 @@ AAF 代码里已存在三个独立概念，此前被"reasoning 默认关闭"一�
 | 层 | 是什么 | 当前实现与默认值 | 本计划结论 |
 |---|---|---|---|
 | 模型侧思考 | 让模型进入 thinking / reasoning 模式，影响**答案质量** | `AiModel.enableThinking`（DB 列 `enable_thinking`，默认 `false`），经 `DynamicChatClientFactory` 用 extraBody 透传；`GenerateOptions` 另有 `thinkingBudget` 与 `reasoningEffort` | **按模型能力默认开启**并参数化。路由侧已有 `FEATURE_REASONING_REQUIRED` 与 `ModelSelectionRequirement.reasoning()`，思考型模型开思考并配 `thinkingBudget`，非思考型不强开 |
-| 思考内容外发 | 是否把 CoT 投影到 AG-UI，影响**安全与合规** | 当前无 `REASONING_*` 输出 | **默认不外发原始 CoT**；在 `AgentScopeEventMapper` 层拦截 `THINKING_BLOCK_*`；可公开摘要由租户级开关控制 |
+| 思考内容外发 | 是否把 CoT 投影到 AG-UI，影响**安全与合规** | 当前无 `REASONING_*` 输出 | ~~默认不外发原始 CoT~~ **2026-11-12 人类改判**：交付节点（面向用户的应答者）的原始思考默认外发为 `REASONING_*`，内部节点（执行者、已委派的协调者）一律不外发；`AgentScopeEventMapper` 把 `THINKING_BLOCK_*` 映射为 `REASONING_STARTED/DELTA/COMPLETED`（增量不落库），由投影层按开关 `aaf.ai.reasoning.enabled`（默认开启）与交付节点判定放行；租户级开关待需求出现时再做 |
 | 推理块回放 | 把上一轮的加密推理块回放给模型，影响**多轮推理连续性** | `AgentMessage.Role.REASONING` 已定义（禁调用方构造、禁压缩器裁剪），但 `AgentScopeMessageMapper` 直接抛异常"推理块回放尚未接入 AgentScope" | **单独立项**，见下方工作包 HLP-R1 |
 
 模型侧默认关闭的现有理由是**技术性的、不是安全性的**：`AiModel` 注释写明"思考型模型流式时会把推理放进 `reasoning_content`、`content` 为空，关闭后正文回到 content 通道正常流式"。因此开启思考的前置条件是先把两个通道分开消费，否则开了思考正文就断流。`apps/service/aaf-framework/src/main/java/com/xuejiai/aaf/framework/intelligent/core/model/AiModel.java:90-96`；`apps/service/aaf-framework/src/main/java/com/xuejiai/aaf/framework/intelligent/ai/chat/DynamicChatClientFactory.java:128-132`

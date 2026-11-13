@@ -606,35 +606,40 @@ class AgentScopeEventMapperTest {
                 .containsEntry("currentIteration", 10);
     }
 
-    // ===== 安全忽略：思考内容、二进制块、core 内部提示 =====
+    // ===== 思考块映射；二进制块、core 内部提示安全忽略 =====
 
     @Test
-    @DisplayName("Given THINKING_BLOCK_START/DELTA/END When 映射 Then 全部忽略不产出事件")
-    void should_ignore_thinking_block_events() {
-        assertThat(
-                        mapper.map(
-                                new ThinkingBlockStartEvent("reply-1", "block-1"),
-                                command(),
-                                "agent.mapper-test",
-                                model(),
-                                new MappingState(0)))
-                .isEmpty();
-        assertThat(
-                        mapper.map(
-                                new ThinkingBlockDeltaEvent("reply-1", "block-1", "思考中"),
-                                command(),
-                                "agent.mapper-test",
-                                model(),
-                                new MappingState(0)))
-                .isEmpty();
-        assertThat(
-                        mapper.map(
-                                new ThinkingBlockEndEvent("reply-1", "block-1"),
-                                command(),
-                                "agent.mapper-test",
-                                model(),
-                                new MappingState(0)))
-                .isEmpty();
+    @DisplayName("Given THINKING_BLOCK_START/DELTA/END When 映射 Then 产出 REASONING_* 三段事件")
+    void should_map_thinking_block_events() {
+        var start =
+                mapper.map(
+                        new ThinkingBlockStartEvent("reply-1", "block-1"),
+                        command(),
+                        "agent.mapper-test",
+                        model(),
+                        new MappingState(0));
+        var delta =
+                mapper.map(
+                        new ThinkingBlockDeltaEvent("reply-1", "block-1", "思考中"),
+                        command(),
+                        "agent.mapper-test",
+                        model(),
+                        new MappingState(0));
+        var end =
+                mapper.map(
+                        new ThinkingBlockEndEvent("reply-1", "block-1"),
+                        command(),
+                        "agent.mapper-test",
+                        model(),
+                        new MappingState(0));
+
+        assertThat(start.orElseThrow().type()).isEqualTo(ExecutionEventType.REASONING_STARTED);
+        assertThat(delta.orElseThrow().type()).isEqualTo(ExecutionEventType.REASONING_DELTA);
+        assertThat(delta.orElseThrow().payload().values())
+                .containsEntry("replyId", "reply-1")
+                .containsEntry("blockId", "block-1")
+                .containsEntry("delta", "思考中");
+        assertThat(end.orElseThrow().type()).isEqualTo(ExecutionEventType.REASONING_COMPLETED);
     }
 
     @Test

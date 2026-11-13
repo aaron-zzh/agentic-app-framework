@@ -54,6 +54,10 @@ public final class InternalNodeEventConverter implements AafAguiEventConverter {
 
     @Override
     public List<AguiEvent> convert(ExecutionEvent event, AafAguiStreamContext context) {
+        // 内部节点的思考过程不外发：只有交付节点的思考由 ReasoningMessageEventConverter 投影
+        if (isReasoning(event.type())) {
+            return List.of();
+        }
         var node = event.nodeIdentity();
         var publicEvent = publicMapper.map(event);
         var data = new LinkedHashMap<String, Object>(publicEvent.data().values());
@@ -139,6 +143,12 @@ public final class InternalNodeEventConverter implements AafAguiEventConverter {
                     context.stepFinished(STEP_EXECUTION);
             default -> List.of();
         };
+    }
+
+    private static boolean isReasoning(ExecutionEventType type) {
+        return type == ExecutionEventType.REASONING_STARTED
+                || type == ExecutionEventType.REASONING_DELTA
+                || type == ExecutionEventType.REASONING_COMPLETED;
     }
 
     /**

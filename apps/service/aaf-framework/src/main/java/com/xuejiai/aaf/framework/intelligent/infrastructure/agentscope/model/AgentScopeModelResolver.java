@@ -7,6 +7,7 @@ import com.xuejiai.aaf.framework.intelligent.core.model.AiModelProviderType;
 import com.xuejiai.aaf.framework.intelligent.core.model.ModelManagementService;
 import com.xuejiai.aaf.framework.intelligent.core.model.ModelSpec;
 
+import io.agentscope.core.model.GenerateOptions;
 import io.agentscope.core.model.Model;
 import io.agentscope.extensions.model.anthropic.AnthropicChatModel;
 import io.agentscope.extensions.model.dashscope.DashScopeChatModel;
@@ -58,11 +59,14 @@ public final class AgentScopeModelResolver {
             return builder.build();
         }
         if (providerType == AiModelProviderType.DASHSCOPE) {
-            return DashScopeChatModel.builder()
-                    .apiKey(apiKey)
-                    .modelName(model.getModelName())
-                    .stream(true)
-                    .build();
+            var builder =
+                    DashScopeChatModel.builder()
+                            .apiKey(apiKey)
+                            .modelName(model.getModelName())
+                            .stream(true)
+                            .enableThinking(model.getEnableThinking());
+            var options = thinkingOptions(model).build();
+            return builder.defaultOptions(options).build();
         }
         var builder =
                 OpenAIChatModel.builder().apiKey(apiKey).modelName(model.getModelName()).stream(
@@ -70,8 +74,32 @@ public final class AgentScopeModelResolver {
         if (hasText(baseUrl)) {
             builder.baseUrl(baseUrl);
         }
-        // 其余 provider 统一走 OpenAI 兼容协议
-        return builder.build();
+        // 其余 provider 统一走 OpenAI 兼容协议；enable_thinking 为 DashScope/Qwen 等的非标准参数，
+        // 与 DynamicChatClientFactory 同一口径：显式下发 true/false，不依赖端点默认值；为 null 时不下发
+        var options = thinkingOptions(model);
+        if (model.getEnableThinking() != null) {
+            options.additionalBodyParam("enable_thinking", model.getEnableThinking());
+        }
+        return builder.generateOptions(options.build()).build();
+    }
+
+    /**
+     * 思考预算与推理强度只对开启思考的模型下发（AAF-106 #10602），未配置字段不下发。
+     *
+     * <p>放在模型级默认参数而非 Agent 级：自主执行（AgentScopeSpecCompiler）与 L0 共用本解析器，两条链路口径一致。
+     */
+    private static GenerateOptions.Builder thinkingOptions(AiModel model) {
+        var options = GenerateOptions.builder();
+        if (!Boolean.TRUE.equals(model.getEnableThinking())) {
+            return options;
+        }
+        if (model.getThinkingBudget() != null) {
+            options.thinkingBudget(model.getThinkingBudget());
+        }
+        if (hasText(model.getReasoningEffort())) {
+            options.reasoningEffort(model.getReasoningEffort());
+        }
+        return options;
     }
 
     /** ModelSpec.modelId 承载的是 ai_model 主键，非法值直接拒绝。 */
@@ -84,7 +112,7 @@ public final class AgentScopeModelResolver {
         }
     }
 
-    private boolean hasText(String value) {
+    private static boolean hasText(String value) {
         return value != null && !value.isBlank();
     }
 }

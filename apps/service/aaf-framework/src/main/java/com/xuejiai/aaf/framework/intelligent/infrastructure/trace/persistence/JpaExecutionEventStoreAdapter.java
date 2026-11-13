@@ -49,8 +49,9 @@ public final class JpaExecutionEventStoreAdapter
     @Override
     public Mono<ExecutionEvent> append(ExecutionEvent event, Lease lease) {
         requireLease(event, lease);
-        if (event.type() == ExecutionEventType.MESSAGE_DELTA) {
-            // 文本增量是瞬态展示数据：完整文本由 MESSAGE_COMPLETED 携带，增量不落库，只经实时端口转发
+        if (event.type() == ExecutionEventType.MESSAGE_DELTA
+                || event.type() == ExecutionEventType.REASONING_DELTA) {
+            // 文本/思考增量是瞬态展示数据：完整文本由 MESSAGE_COMPLETED 携带，思考过程不持久化，增量只经实时端口转发
             return Mono.just(event);
         }
         return Mono.fromCallable(() -> appendBlocking(event, lease))

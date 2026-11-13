@@ -8,7 +8,6 @@ import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.compiler.
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.middleware.FunctionContractPromptMiddleware;
 
 import io.agentscope.core.ReActAgent;
-import io.agentscope.core.model.GenerateOptions;
 import io.agentscope.core.tool.Toolkit;
 
 /**
@@ -48,34 +47,8 @@ public final class L0ReActAgentFactory implements Function<AiModel, ReActAgent>,
                         .middleware(new FunctionContractPromptMiddleware());
         // 不设 stateStore：L0 无状态，调用结束即弹出内存，不持久化
         // 不设 fallbackModel：CapabilityRouter 已解析出唯一模型，provider 层不静默切换（依 ADR-007）
-        var generateOptions = generateOptions(model);
-        if (generateOptions != null) {
-            builder.generateOptions(generateOptions);
-        }
+        // 思考参数由 AgentScopeModelResolver 作为模型级默认参数下发，与自主执行同一口径
         return builder.build();
-    }
-
-    /**
-     * 仅思考型模型（{@code enableThinking=true}）才下发 {@code thinkingBudget}/{@code reasoningEffort}；
-     * 非思考型模型不得被强制开启（AAF-106 #10601 完成标准），未配置字段时不下发对应参数。
-     */
-    private static GenerateOptions generateOptions(AiModel model) {
-        if (!Boolean.TRUE.equals(model.getEnableThinking())) {
-            return null;
-        }
-        var thinkingBudget = model.getThinkingBudget();
-        var reasoningEffort = model.getReasoningEffort();
-        if (thinkingBudget == null && (reasoningEffort == null || reasoningEffort.isBlank())) {
-            return null;
-        }
-        var optionsBuilder = GenerateOptions.builder();
-        if (thinkingBudget != null) {
-            optionsBuilder.thinkingBudget(thinkingBudget);
-        }
-        if (reasoningEffort != null && !reasoningEffort.isBlank()) {
-            optionsBuilder.reasoningEffort(reasoningEffort);
-        }
-        return optionsBuilder.build();
     }
 
     @Override
