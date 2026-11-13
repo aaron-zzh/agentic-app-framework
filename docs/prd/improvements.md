@@ -45,6 +45,8 @@ AI 智能体和人类用户协作中发现的改进点，协调者定期审阅�
 
 - 2026-10-15 | **迁移号段规则只在"所有环境可清库重建"时成立**：`architecture-constraints.md` 的"数据库迁移版本号规划"为每个模块登记百位号段，号段内新增文件取下一个编号。Flyway 默认 `outOfOrder=false`（`application.yaml` 未设置），一旦某个环境已执行过更高版本（如 v400），再新增 v305 会被校验判为"已解析但未应用"而启动失败。目前不出问题，是因为项目未发布、按既有约定（`v7__aigc_schema.sql` 头部"所有环境必须清空后按 Flyway 顺序重建"、dev 的 `aaf.flyway.clean-on-start`）每次清库重建，生产也还没有数据。首次生产部署前需要协调者定演进策略：① 开启 `spring.flyway.out-of-order=true`，保留号段，模块之间保持迁移互不依赖；② 新迁移改用单调递增的时间戳版本号，号段规则作废；③ 种子数据改用幂等的可重复迁移 `R__`（现有种子已写成 `ON CONFLICT`），只有表结构变更保留版本号文件。同时需修订该文档里"单号段预期覆盖单个模块全生命周期"的假设。出处：AAF-120 | 已决定：生产也保持顺序执行，不开启乱序；已部署环境之后的变更必须取比已部署最大版本更大的编号，号段内编号此后不再保证连续，该文档的号段假设需由协调者据此修订
 - 2026-11-05 | **`knowledge_search` 工具检索结果未记录为引用来源**：AAF-118 #11816 ~ #11818 把文字对话的知识库访问从 L1 预检索改为模型按需调用 `knowledge_search`。原 L1 预检索会把命中写入 `EffectiveContextManifest` 的 `SourceReference`；工具结果经 `ToolResultEvidenceStore` 时只保留白名单元数据，来源信息被丢弃，执行清单与前端都拿不到引用。后续需定义工具检索命中的引用契约（清单记录 + AG-UI 引用事件 + 前端展示），并决定 `AutomationDelegatedDispatchAdapter` 模板合同是否默认放行 `knowledge_search` | 待评估
+- 2026-11-09 | **`ai_persona` 归属规则只写在注释里，代码未落实**：表注释与 `Persona` Javadoc 约定 `owner_id` 为 NULL 是系统公共模板、有值是用户私有人格，但 `PersonaCrudService` 创建时不写 `owner_id`，读取不按 `owner_id` 过滤，代码中也没有读写 `Persona.ownerId` 的地方，所有人格对所有调用者可见。处理方向可参照 AAF-118 的 `RoleVisibility` 或 AAF-126 的记录规则方案 | 待评估
+- 2026-11-10 | **"工作流"存在两套独立模型**：AI 工作流定义 `ai_flow_definition`（`/api/ai/workflows`，ReactFlow 节点图，可发布到 Flowable 运行）与 Studio 流水线模板 `user_workflow_template`（`/aigc/workflow-templates`，`templateConfig.steps`，运行页 `/studio/create/pipeline/[id]` 为前端模拟，只记运行次数），两者互不引用。AAF-125 首页工作流标签页已选定 `ai_flow_definition`。另：AI 工作流缺"按工作流查询运行实例"接口，终端用户生产运行（`PREDEFINED_WORKFLOW`）未实现，Studio 用户侧无创建入口（中台编辑器菜单仅管理员可见）。方向：评估把流水线模板改为基于 AI 工作流定义的官方模板，删除独立模型 | 待评估
 
 ## 五层智能架构代码-文档一致性审计（2026-08-26）
 

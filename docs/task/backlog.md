@@ -2,7 +2,7 @@
 
 所有用户故事的唯一来源。条目由 product agent 细化后登记，协调者维护编号和状态。
 
-编号规则：`AAF-{三位序号}`，全局递增，不按版本重置。当前最大编号：**AAF-125**，新一级用户故事从 AAF-126 开始。添加新条目后必须同步更新此行。
+编号规则：`AAF-{三位序号}`，全局递增，不按版本重置。当前最大编号：**AAF-128**，新一级用户故事从 AAF-129 开始。添加新条目后必须同步更新此行。
 
 ## 当前迭代（v0.13）
 
@@ -11,7 +11,10 @@
 - [ ] AAF-115 (创建: 09-11) 统一 Task/TaskPlan/Execution 任务模型与 DAG 编排（移除 AssistantTask/DelegatedTask 双真理源；普通 CHAT 只建 Execution；复杂任务使用唯一 Task + 可选 TaskPlan；支持串行、并行、join、fan-out/fan-in、恢复与 fencing）任务: docs/task/v0.13/AAF-115/tasks.md
 - [ ] AAF-117 (创建: 10-12) 任务式调用执行形态与全环节流式可视化（TASK 路径 delta 不落库并实时转发；DIRECT/TASK 统一为协调者的轻量态与任务态；协调者直答与交付、分解策略 AUTO/NONE/REQUIRED；内置技能与控制工具重命名；聚合要求与聚合者输入契约；harness 驱动的产物保存；各节点输出按节点折叠展示；依赖 AAF-115）设计: docs/design/adr/ADR-008-task-execution-shape-and-streaming.md 任务: docs/task/v0.13/AAF-117/tasks.md
 - [ ] AAF-123 (创建: 11-08) 助理消息语音播放改为后端实时流式 TTS（新增 `POST /api/voice/tts/stream` 流式返回 16kHz PCM，复用 `SpeechService.startTtsTask` 实时连接池与积分预检结算；前端 PCM 分片排队播放、支持停止，默认服务端模式，用户可手动切回浏览器 speechSynthesis；🟡 中风险）任务: docs/task/v0.13/AAF-123/tasks.md
-- [ ] AAF-125 (创建: 11-09) Studio 首页与项目主页布局拆分（首页通用化第一步：最近项目与项目模板移到 `/studio/projects` 未筛选视图顶部；首页保留工作概况，快速创作与积分消耗分类并排展示；积分分类抽成共享派生 hook，与积分中心同源，口径统一为近 30 天 SPEND；修订 AAF-100 首页四行约束；只改前端，🟡 中风险）任务: docs/task/v0.13/AAF-125/tasks.md
+- [ ] AAF-125 (创建: 11-09) Studio 首页座舱大屏与项目主页布局拆分（最近项目与项目模板移到 `/studio/projects` 未筛选视图顶部；首页改为座舱大屏：中央 xyflow 多智能体协作画布作背景，标签页切换协作关系［助理→角色→技能/工具/知识库，真实数据］与运行实况［任务流程、动态状态、审批演示，示例数据待 AAF-115］；左栏资源列表，右栏可折叠积分与运行统计，底部 200px 半透明可折叠创作区与最近生成条；积分图表抽成共享派生 hook 与积分中心同源；首页顶栏可收起；自定义显示保留并预留添加图表；修订 AAF-100 首页四行约束；只改前端，🟡 中风险）任务: docs/task/v0.13/AAF-125/tasks.md
+- [ ] AAF-126 (创建: 11-09) 角色分类（新增 `ai_role_category`：系统预置分类由管理员维护、所有用户可见，用户私有分类仅本人可见可改；`visibility` 取 SYSTEM/PRIVATE 加 `owner_id`，基于 BaseCrud 提供标准 CRUD，读取范围由记录规则声明并在列表追加业务条件兜底，写入由服务层校验所有权；`ai_role.category_id` 按角色所有者归类，内置与公开角色只能归入系统分类，发布时私有分类不随副本带出；管理后台 EntityDef 维护系统分类，用户端角色库按分类筛选并管理自己的分类；种子预置通用、内容创作、智慧养老、智慧农业并回填存量内置角色；不做用户把内置角色放进私有分类；🔴 高风险，设计已于 11-09 经人类确认，先做后端）任务: docs/task/v0.13/AAF-126/tasks.md
+- [ ] AAF-127 (创建: 11-11) 助理协调者自动切换角色与任务升级续流（删除 L0 角色选择，未锁定时从会话当前角色或默认角色起步；新增 `activate_role` 轻量态切换并在同一 Run 续接；`promote_to_task` 携带角色与形态，升级后同一条 SSE 继续接任务事件；TASK 允许自动路由；委派授权基线改为助理已发布角色目录、执行者技能可选；首页看板经公共 SSE 接收任务与节点状态；🔴 高风险，设计已于 11-11 经人类确认）设计: docs/design/adr/ADR-011-assistant-single-entry-and-on-demand-role.md 任务: docs/task/v0.13/AAF-127/tasks.md
+- [ ] AAF-128 (创建: 11-12) 轻量态遇授权工具自动升级并携带待执行调用（DIRECT 下 `DefaultToolGateway` 判定需授权时不再拒绝，由 harness 自动 promote 为 Task，并把待执行工具调用［工具名、参数、toolCallId、已解析资源］带入新任务，协调者节点首轮直接重放该调用发起 HITL，不再让模型重新查询；只在副作用发生前触发，保持 `sideEffectEpoch=0` 升级前提；同时修复授权等待后 `VALIDATION_FAILED`/`EXECUTION_PAUSED` 写入已关闭 Dispatch 导致 `StaleExecutionException`、审批卡片丢失；不做 DIRECT 原生 HITL；前端对自动升级显示审批提示；🔴 高风险，设计已于 11-12 经人类确认）设计: docs/task/v0.13/AAF-128/design.md 任务: docs/task/v0.13/AAF-128/tasks.md
 
 ## 待排期
 
